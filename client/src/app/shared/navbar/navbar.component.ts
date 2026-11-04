@@ -25,7 +25,9 @@ export class NavbarComponent implements OnInit, OnDestroy {
   readonly cartData = toSignal(this.carritoService.cartData$, { initialValue: null });
   readonly cartCount = toSignal(this.carritoService.cartCount$, { initialValue: 0 });
 
-  readonly esCliente = computed(() => this.currentUser()?.rol?.toLowerCase() === 'cliente');
+  // El carrito está abierto a todo usuario autenticado (decisión del equipo: las cuentas
+  // empresa también compran para probar el flujo).
+  readonly puedeComprar = computed(() => !!this.currentUser());
   readonly userRole = computed(() => this.currentUser()?.rol?.toLowerCase() ?? '');
 
   menuOpen = false;
@@ -47,21 +49,35 @@ export class NavbarComponent implements OnInit, OnDestroy {
   private paymentElement: StripePaymentElement | null = null;
   private stripeMontado = false;
   private stripePreload: Promise<{ stripe: Stripe; clientSecret: string }> | null = null;
-  private authSub?: Subscription;
+  private firmaCarrito = '';
+  /** Firma (ítems|total) del carrito con la que se creó el PaymentIntent vigente. */
+  private firmaStripe = '';
+  private readonly subs = new Subscription();
 
   ngOnInit(): void {
-    // Cargar carrito inicial exclusivamente para usuarios con rol cliente
-    this.authSub = this.authService.currentUser$.subscribe((user) => {
-      if (user && user.rol?.toLowerCase() === 'cliente') {
+    // Cargar carrito inicial para cualquier usuario autenticado
+    this.subs.add(this.authService.currentUser$.subscribe((user) => {
+      if (user) {
         this.carritoService.cargarCarritoSilencioso();
       }
-    });
+    }));
+
+    // El PaymentIntent se crea por el total del carrito en ese momento: si el
+    // carrito cambia (cantidades, ítems quitados o agregados desde el catálogo),
+    // hay que crear otro cuando llega el total nuevo, porque si no se cobraría
+    // un monto distinto y el checkout lo rechazaría.
+    this.subs.add(this.carritoService.cartData$.subscribe((data) => {
+      this.firmaCarrito = data ? `${data.total_items}|${data.total_global}` : '';
+      if (this.cartOpen && this.stripePreload && this.firmaCarrito !== this.firmaStripe) {
+        this.refrescarPagoStripe(data?.total_items ?? 0);
+      }
+    }));
   }
 
   ngOnDestroy(): void {
     this.resetPagoStripe();
     this.setCartOpen(false);
-    this.authSub?.unsubscribe();
+    this.subs.unsubscribe();
   }
 
   toggleMenu(): void {
@@ -74,7 +90,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
   }
 
   toggleCart(): void {
-    if (!this.esCliente()) {
+    if (!this.puedeComprar()) {
       return;
     }
     this.setCartOpen(!this.cartOpen);
@@ -105,13 +121,15 @@ export class NavbarComponent implements OnInit, OnDestroy {
     }
   }
 
+  // --- Operaciones de Ítems en Carrito ---
+  // Cualquier cambio invalida el monto del PaymentIntent previo; la suscripción a
+  // cartData$ de ngOnInit lo recrea con el total actualizado, conservando el método elegido.
+
   incrementar(item: ItemCarritoDetalle): void {
-    this.resetPagoStripe();
     this.carritoService.actualizarCantidad(item.id, item.cantidad + 1).subscribe();
   }
 
   decrementar(item: ItemCarritoDetalle): void {
-    this.resetPagoStripe();
     if (item.cantidad > 1) {
       this.carritoService.actualizarCantidad(item.id, item.cantidad - 1).subscribe();
     } else {
@@ -120,7 +138,6 @@ export class NavbarComponent implements OnInit, OnDestroy {
   }
 
   eliminar(itemId: number): void {
-    this.resetPagoStripe();
     this.carritoService.eliminarItem(itemId).subscribe();
   }
 
@@ -152,7 +169,8 @@ export class NavbarComponent implements OnInit, OnDestroy {
     });
 
     this.stripePreload = preload;
-    preload.catch(() => {});
+    this.firmaStripe = this.firmaCarrito;
+    preload.catch(() => {}); // Previene errores no capturados en consola
     return preload;
   }
 
@@ -177,6 +195,24 @@ export class NavbarComponent implements OnInit, OnDestroy {
       });
   }
 
+  /** Descarta el PaymentIntent vigente (el carrito cambió) y crea uno nuevo por el total actual,
+   * conservando el método de pago elegido. Si se está cobrando, no se toca nada. */
+  private refrescarPagoStripe(totalItems: number): void {
+    if (this.pagandoStripe) return;
+    const metodo = this.metodoPago;
+    this.resetPagoStripe();
+    if (totalItems <= 0) return;
+    this.precargarStripe();
+    if (metodo === 'stripe') {
+      this.metodoPago = 'stripe';
+      this.iniciarPagoStripe();
+    }
+  }
+
+  /**
+   * Limpia y destruye meticulosamente la instancia de Stripe y el nodo del DOM.
+   * Evita memory leaks, iframes huérfanos o colisiones al reabrir el drawer.
+   */
   private resetPagoStripe(): void {
     this.metodoPago = 'efectivo';
     if (this.paymentElement) {
@@ -192,6 +228,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
     this.stripeError = null;
     this.pagandoStripe = false;
     this.stripePreload = null;
+    this.firmaStripe = '';
 
     if (typeof document !== 'undefined') {
       const mountNode = document.getElementById('stripe-payment-element');

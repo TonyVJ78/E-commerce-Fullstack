@@ -72,20 +72,41 @@ def notificar_cupon(cupon, *, dry_run=False):
     hoy = timezone.localdate()
     if not (cupon.activo and cupon.tienda.activa and cupon.fecha_inicio <= hoy <= cupon.fecha_expiracion):
         return 0
-    # A promotion concerns customers who have interacted with this store only.
-    from apps.crm.models import FichaCliente
+    # A promotion concerns customers who have interacted with this store or registered a push device.
+    from apps.crm.models import FichaCliente, SegmentoCliente, TicketSoporte
     from apps.pedidos.models import Pedido, Carrito
     ids = set(FichaCliente.objects.filter(tienda=cupon.tienda).values_list('cliente_id', flat=True))
+    ids.update(SegmentoCliente.objects.filter(tienda=cupon.tienda).values_list('cliente_id', flat=True))
     ids.update(Pedido.objects.filter(tienda=cupon.tienda).values_list('cliente_id', flat=True))
     ids.update(Carrito.objects.filter(tienda=cupon.tienda).values_list('cliente_id', flat=True))
+    ids.update(TicketSoporte.objects.filter(tienda=cupon.tienda).values_list('cliente_id', flat=True))
+    ids.update(DispositivoPush.objects.filter(activo=True).values_list('usuario_id', flat=True))
+
+    if cupon.tipo_descuento == 'porcentaje':
+        val = int(cupon.valor_descuento) if cupon.valor_descuento == int(cupon.valor_descuento) else cupon.valor_descuento
+        detalle_dto = f'{val}% de descuento'
+    else:
+        detalle_dto = f'Bs {cupon.valor_descuento} de descuento'
+
     total = 0
     for cliente in get_user_model().objects.filter(pk__in=ids, is_active=True, activo=True, rol__nombre='cliente'):
         if es_destinatario(cupon, cliente) and cupon.usos.count() < cupon.usos_maximos and cupon.usos.filter(pedido__cliente=cliente).count() < cupon.limite_por_cliente:
             if dry_run:
                 total += not NotificacionEnviada.objects.filter(clave_evento=f'cupon:{cupon.pk}:{cliente.pk}').exists()
                 continue
-            _, creada = crear_notificacion(tienda=cupon.tienda, cliente=cliente,
-                titulo='Una promoción para ti', mensaje=f'Usa {cupon.codigo} en {cupon.tienda.nombre}. Consulta sus condiciones.',
-                tipo='cupon', datos={'cupon_id': cupon.pk}, clave=f'cupon:{cupon.pk}:{cliente.pk}')
+            _, creada = crear_notificacion(
+                tienda=cupon.tienda,
+                cliente=cliente,
+                titulo=f'¡Cupón de descuento en {cupon.tienda.nombre}!',
+                mensaje=f'Usa {cupon.codigo} en {cupon.tienda.nombre} y obtén {detalle_dto}. Consulta sus condiciones.',
+                tipo='cupon',
+                datos={
+                    'cupon_id': cupon.pk,
+                    'codigo': cupon.codigo,
+                    'valor_descuento': str(cupon.valor_descuento),
+                    'tipo_descuento': cupon.tipo_descuento,
+                },
+                clave=f'cupon:{cupon.pk}:{cliente.pk}',
+            )
             total += creada
     return total

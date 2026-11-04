@@ -9,7 +9,7 @@ import {
   VarianteCatalogo,
   CategoriaCatalogo
 } from '../../core/models';
-import { CatalogoService } from '../../core/services/catalogo.service';
+import { CatalogoService, FiltrosCatalogo } from '../../core/services/catalogo.service';
 import { CarritoService } from '../../core/services/carrito.service';
 import { RecomendacionService } from '../../core/services/recomendacion.service';
 import { RecomendacionesComponent } from './recomendaciones/recomendaciones.component';
@@ -136,36 +136,27 @@ export class HomeClienteComponent implements OnInit, OnDestroy {
     return count;
   }
 
-  aplicarFiltros(registrarBusqueda = true): void {
-    this.cargando = true;
-    this.limpiarMensajes();
-
-    const filtros: {
-      categoria?: number;
-      tienda?: number;
-      q?: string;
-      precio_min?: number;
-      precio_max?: number;
-      en_stock?: boolean;
-      orden?: string;
-    } = {};
+  /**
+   * Arma los filtros del catálogo general. Cada tienda tiene su propia fila de
+   * "Accesorios", así que sin una tienda elegida se filtra por nombre para
+   * juntar esa categoría en todas las tiendas; el id sólo sirve dentro de una.
+   */
+  private construirFiltros(): FiltrosCatalogo {
+    const filtros: FiltrosCatalogo = {};
 
     if (this.categoriaSeleccionadaId) {
-      filtros.categoria = this.categoriaSeleccionadaId;
+      const cat = this.categorias.find(c => c.id === this.categoriaSeleccionadaId);
+      if (this.tiendaSeleccionadaId || !cat) {
+        filtros.categoria = this.categoriaSeleccionadaId;
+      } else {
+        filtros.categoria_nombre = cat.nombre;
+      }
     }
     if (this.tiendaSeleccionadaId) {
       filtros.tienda = this.tiendaSeleccionadaId;
     }
     if (this.terminoBusqueda.trim()) {
       filtros.q = this.terminoBusqueda.trim();
-      // Telemetría asíncrona fire-and-forget de búsqueda
-      if (registrarBusqueda && this.tiendaSeleccionadaId) {
-        this.recomendacionService.notificarInteraccion({
-          tienda_id: this.tiendaSeleccionadaId,
-          tipo_interaccion: 'SEARCH',
-          termino_busqueda: this.terminoBusqueda
-        });
-      }
     }
     if (this.precioMinimo !== null && this.precioMinimo >= 0) {
       filtros.precio_min = this.precioMinimo;
@@ -178,6 +169,22 @@ export class HomeClienteComponent implements OnInit, OnDestroy {
     }
     if (this.ordenSeleccionado) {
       filtros.orden = this.ordenSeleccionado;
+    }
+    return filtros;
+  }
+
+  aplicarFiltros(registrarBusqueda = true): void {
+    this.cargando = true;
+    this.limpiarMensajes();
+
+    const filtros = this.construirFiltros();
+    if (filtros.q && registrarBusqueda && this.tiendaSeleccionadaId) {
+      // Telemetría asíncrona fire-and-forget de búsqueda
+      this.recomendacionService.notificarInteraccion({
+        tienda_id: this.tiendaSeleccionadaId,
+        tipo_interaccion: 'SEARCH',
+        termino_busqueda: this.terminoBusqueda
+      });
     }
 
     this.catalogoService.listarTodosLosProductos(filtros).subscribe({
@@ -201,16 +208,7 @@ export class HomeClienteComponent implements OnInit, OnDestroy {
   }
 
   recargarCatalogoSilencioso(): void {
-    const filtros: { categoria?: number; tienda?: number; q?: string } = {};
-    if (this.categoriaSeleccionadaId) {
-      filtros.categoria = this.categoriaSeleccionadaId;
-    }
-    if (this.tiendaSeleccionadaId) {
-      filtros.tienda = this.tiendaSeleccionadaId;
-    }
-    if (this.terminoBusqueda.trim()) {
-      filtros.q = this.terminoBusqueda.trim();
-    }
+    const filtros = this.construirFiltros();
 
     this.catalogoService.listarTodosLosProductos(filtros).subscribe({
       next: (prods) => {

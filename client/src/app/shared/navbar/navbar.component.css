@@ -273,7 +273,10 @@
 
 .cart-drawer-body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
@@ -777,8 +780,8 @@
     padding: 1rem 1.15rem;
   }
 
-  .cart-drawer-footer {
-    padding: 1rem 1.15rem;
+  .cart-totals-section {
+    padding: 0.9rem 1rem;
   }
 
   .cart-item-card {

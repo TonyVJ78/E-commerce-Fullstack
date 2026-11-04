@@ -10,11 +10,16 @@ from django.core.mail import send_mail
 from django.utils import timezone
 
 from apps.crm.models import CampanaCarrito, RegistroRecuperacionCarrito
+from apps.crm.services_carrito_abandonado import (
+    construir_mensaje_carrito_push,
+    sincronizar_cupon_campana_carrito,
+)
+from apps.marketing.notificaciones import crear_notificacion
 from apps.pedidos.models import Carrito, Pedido
 
 
 class Command(BaseCommand):
-    help = 'Evalua carritos inactivos segun las campanas activas y envia correos de recuperacion.'
+    help = 'Evalua carritos inactivos segun las campanas activas y envia correos y notificaciones push de recuperacion.'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -39,6 +44,8 @@ class Command(BaseCommand):
 
         for campana in campanas_activas:
             tienda = campana.tienda
+            if not dry_run:
+                sincronizar_cupon_campana_carrito(campana)
             tiempo_limite = timezone.now() - timezone.timedelta(hours=campana.horas_inactividad)
 
             # Buscar carritos con fecha menor o igual al umbral de inactividad
@@ -141,6 +148,26 @@ class Command(BaseCommand):
                             fail_silently=False,
                         )
 
+                        productos = ', '.join(
+                            [it.variante.producto.nombre for it in items[:3]]
+                        )
+                        clave = f'carrito:{carrito.pk}:{carrito.ultima_actividad.isoformat()}'
+                        datos = {'carrito_id': carrito.pk}
+                        codigo = (campana.codigo_cupon or '').strip().upper()
+                        if campana.descuento_porcentaje > 0 and codigo:
+                            datos['codigo_cupon'] = codigo
+                            datos['descuento_porcentaje'] = str(campana.descuento_porcentaje)
+
+                        crear_notificacion(
+                            tienda=tienda,
+                            cliente=carrito.cliente,
+                            titulo=asunto,
+                            mensaje=construir_mensaje_carrito_push(campana, productos),
+                            tipo='carrito_abandonado',
+                            datos=datos,
+                            clave=clave,
+                        )
+
                         registro = RegistroRecuperacionCarrito.objects.filter(
                             campana=campana, carrito=carrito, fecha_envio__gte=carrito.ultima_actividad).first()
                         if registro:
@@ -153,7 +180,7 @@ class Command(BaseCommand):
                         self.stdout.write(
                             f"[NOTIFICADO] Carrito #{carrito.id} en tienda #{tienda.id}"
                         )
-                    except Exception as e:
+                    except Exception:
                         self.stderr.write(
                             f"[ERROR] No se pudo enviar email del carrito #{carrito.id}"
                         )

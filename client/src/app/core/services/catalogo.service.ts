@@ -11,6 +11,17 @@ import {
 
 export type { TiendaCatalogo, VarianteCatalogo, ProductoCatalogo, CategoriaCatalogo };
 
+export interface FiltrosCatalogo {
+  categoria?: number;
+  categoria_nombre?: string;
+  tienda?: number;
+  q?: string;
+  precio_min?: number;
+  precio_max?: number;
+  en_stock?: boolean;
+  orden?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class CatalogoService {
   private readonly apiUrl = `${environment.apiUrl}/catalogo`;
@@ -29,16 +40,7 @@ export class CatalogoService {
     return this.http.get<CategoriaCatalogo[]>(`${this.apiUrl}/categorias/`, { params });
   }
 
-  listarTodosLosProductos(filtros?: {
-    categoria?: number;
-    categoria_nombre?: string;
-    tienda?: number;
-    q?: string;
-    precio_min?: number;
-    precio_max?: number;
-    en_stock?: boolean;
-    orden?: string;
-  }): Observable<ProductoCatalogo[]> {
+  listarTodosLosProductos(filtros?: FiltrosCatalogo): Observable<ProductoCatalogo[]> {
     let params = new HttpParams();
     if (filtros?.categoria) {
       params = params.set('categoria', filtros.categoria.toString());

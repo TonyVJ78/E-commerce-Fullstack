@@ -58,13 +58,13 @@ export const routes: Routes = [
     pathMatch: 'full'
   },
   {
+    // Ficha de producto: destino de las recomendaciones del chatbot.
     path: 'producto/:id',
     loadComponent: () =>
       import('./features/producto/detalle-producto/detalle-producto.component').then(
         m => m.DetalleProductoComponent
       )
   },
-
   {
     path: 'dashboard',
     canActivate: [authGuard],
@@ -86,14 +86,21 @@ export const routes: Routes = [
   {
     path: 'admin/backups',
     canActivate: [adminGuard],
-    loadComponent: () => import('./features/admin/backups-admin/backups-admin.component').then(m => m.BackupsAdminComponent)
+    loadComponent: () =>
+      import('./features/admin/backups-admin/backups-admin.component').then(m => m.BackupsAdminComponent)
   },
   {
-    path: 'backups', redirectTo: 'admin/backups', pathMatch: 'full'
+    path: 'backups',
+    redirectTo: 'admin/backups',
+    pathMatch: 'full'
   },
   {
-    path: 'informes', canActivate: [authGuard],
-    loadComponent: () => import('./features/informes/informes.component').then(m => m.InformesComponent)
+    // Informes con IA (CU-34): el acceso real lo decide el permiso
+    // `informes.ver` de la matriz; sin él la página muestra el aviso.
+    path: 'informes',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/informes/informes.component').then(m => m.InformesComponent)
   },
   {
     path: 'perfil',
@@ -154,10 +161,6 @@ export const routes: Routes = [
     canActivate: [empresaGuard],
     loadComponent: () =>
       import('./features/tienda/dashboard-empresa/dashboard-empresa.component').then(m => m.DashboardEmpresaComponent)
-  },
-  {
-    path: 'tiendas/clientes/segmentacion', canActivate: [empresaGuard],
-    loadComponent: () => import('./features/tienda/segmentacion-clientes/segmentacion-clientes.component').then(m => m.SegmentacionClientesComponent)
   },
   {
     path: '**',

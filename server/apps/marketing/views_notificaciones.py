@@ -5,6 +5,7 @@ from django.utils import timezone
 from rest_framework import permissions, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from apps.crm.services_carrito_abandonado import verificar_carritos_abandonados_cliente
 from apps.usuarios.permissions import IsCliente
 from .models import DispositivoPush, NotificacionEnviada
 
@@ -35,9 +36,11 @@ class BandejaView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsCliente]
 
     def get(self, request):
+        antes = request.query_params.get('antes')
+        if not antes:
+            verificar_carritos_abandonados_cliente(request.user)
         qs = NotificacionEnviada.objects.filter(cliente=request.user).select_related('tienda')
         # Cursor pagination avoids dropping old notifications beyond the first page.
-        antes = request.query_params.get('antes')
         if antes:
             try:
                 qs = qs.filter(pk__lt=int(antes))

@@ -20,7 +20,7 @@
 
     <!-- Acciones en barra movil (Carrito y Toggle) -->
     <div class="navbar-actions-mobile">
-      @if (esCliente()) {
+      @if (puedeComprar()) {
         <button
           class="cart-trigger-btn mobile-cart-btn"
           (click)="toggleCart()"
@@ -83,8 +83,8 @@
           </a>
         }
 
-        <!-- Boton de Carrito (Desktop - solo rol cliente) -->
-        @if (esCliente()) {
+        <!-- Boton de Carrito (Desktop - cualquier usuario autenticado) -->
+        @if (puedeComprar()) {
           <button
             class="cart-trigger-btn desktop-only"
             (click)="toggleCart()"
@@ -126,7 +126,7 @@
 <!-- ========================================================================= -->
 <!-- SLIDE-OVER DRAWER DEL CARRITO DE COMPRAS CON PASARELA STRIPE -->
 <!-- ========================================================================= -->
-@if (esCliente()) {
+@if (puedeComprar()) {
   @if (cartOpen) {
     <div class="cart-backdrop" (click)="closeCart()"></div>
   }

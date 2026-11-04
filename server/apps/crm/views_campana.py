@@ -14,6 +14,10 @@ from rest_framework.views import APIView
 
 from apps.crm.models import CampanaCarrito, RegistroRecuperacionCarrito
 from apps.crm.serializers import CampanaCarritoSerializer
+from apps.crm.services_carrito_abandonado import (
+    notificar_carritos_abandonados_tienda,
+    sincronizar_cupon_campana_carrito,
+)
 from apps.tiendas.models import Tienda
 from apps.pedidos.models import Carrito
 from apps.usuarios.permissions import IsEmpresa
@@ -122,6 +126,10 @@ class TiendaCampanaCarritoView(APIView):
         }
 
         campana_actualizada = serializer.save()
+        sincronizar_cupon_campana_carrito(campana_actualizada)
+        notificados_push = 0
+        if campana_actualizada.activo:
+            notificados_push = notificar_carritos_abandonados_tienda(campana_actualizada)
 
         # Registro en auditoría (CU-23)
         registrar_auditoria(
@@ -136,6 +144,7 @@ class TiendaCampanaCarritoView(APIView):
         return Response({
             'mensaje': 'Configuración de campaña guardada correctamente.',
             'campana': serializer.data,
+            'notificados_push': notificados_push,
         }, status=status.HTTP_200_OK)
 
 
@@ -220,7 +229,8 @@ class TiendaCarritosAbandonadosListView(APIView):
 class TiendaDispararPruebaCampanaView(APIView):
     """
     POST /api/tiendas/<tienda_id>/campana-carrito/disparar-prueba/
-    Envía un correo de prueba de la campaña a la dirección de correo de la tienda.
+    Envía un correo de prueba de la campaña a la dirección de correo de la tienda
+    y notifica por push/bandeja a los carritos activos de la tienda.
     """
     permission_classes = [permissions.IsAuthenticated, IsEmpresa]
 
@@ -287,9 +297,14 @@ class TiendaDispararPruebaCampanaView(APIView):
             email_enviado = False
             mensaje_resultado = f"Plantilla generada correctamente (simulada): {str(e)}"
 
+        notificados_push = notificar_carritos_abandonados_tienda(
+            campana, incluir_recientes=True
+        )
+
         return Response({
             'success': True,
             'enviado': email_enviado,
+            'notificados_push': notificados_push,
             'destinatario': destinatario,
             'mensaje': mensaje_resultado,
         }, status=status.HTTP_200_OK)
