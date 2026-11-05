@@ -2,19 +2,19 @@
 Controlador REST API para la gestion de Copias de Seguridad (CU-28).
 Proporciona endpoints administrativos para visualizacion, generacion bajo demanda,
 descarga segura y programacion de respaldos en PostgreSQL / Neon Tech.
+Soporta tanto almacenamiento en disco local como entornos serverless efímeros (Vercel).
 """
 
 import datetime
 import json
 import logging
-import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from django.conf import settings
 from django.db import connection
-from django.http import FileResponse, Http404, HttpRequest, HttpResponse
+from django.http import FileResponse, HttpRequest, HttpResponse
 from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.response import Response
@@ -23,7 +23,6 @@ from rest_framework.views import APIView
 from apps.usuarios.models import LogAuditoria
 from apps.usuarios.services.backup_service import (
     BackupService,
-    BinaryDetector,
     DatabaseCredentials,
 )
 
@@ -80,13 +79,11 @@ def _calcular_proxima_ejecucion(activo: bool, frecuencia: str, hora_ejecucion: s
 
     frecuencia_norm = frecuencia.strip().lower()
     if frecuencia_norm in ('semanal', 'weekly'):
-        # Si la hora de hoy ya paso, sumar dias hasta la proxima semana
         dias_a_sumar = (7 - ahora.weekday()) if ahora.weekday() != 0 or candidato <= ahora else 0
         if dias_a_sumar == 0 and candidato <= ahora:
             dias_a_sumar = 7
         proxima = candidato + datetime.timedelta(days=dias_a_sumar)
     else:
-        # Frecuencia diaria
         if candidato <= ahora:
             proxima = candidato + datetime.timedelta(days=1)
         else:
@@ -96,7 +93,7 @@ def _calcular_proxima_ejecucion(activo: bool, frecuencia: str, hora_ejecucion: s
 
 
 def _leer_config_automatizacion() -> Dict[str, Any]:
-    """Carga la configuracion de automatizacion guardada o retorna valores por defecto."""
+    """Carga la configuracion de automatizacion desde disco o LogAuditoria (para Vercel serverless)."""
     config_path = _get_schedule_config_path()
     defaults = {
         "activo": True,
@@ -105,13 +102,30 @@ def _leer_config_automatizacion() -> Dict[str, Any]:
         "retencion_dias": 30,
     }
 
+    loaded = False
     if config_path.is_file():
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 saved = json.load(f)
-                defaults.update(saved)
+                if isinstance(saved, dict):
+                    defaults.update(saved)
+                    loaded = True
         except Exception as e:
             logger.warning("Error al leer configuracion de automatizacion de backups: %s", e)
+
+    if not loaded:
+        try:
+            ultimo_log = (
+                LogAuditoria.objects.filter(accion='CONFIG_AUTOMATIZACION')
+                .order_by('-fecha')
+                .first()
+            )
+            if ultimo_log and isinstance(ultimo_log.datos_nuevos, dict):
+                for k in ('activo', 'frecuencia', 'hora_ejecucion', 'retencion_dias'):
+                    if k in ultimo_log.datos_nuevos:
+                        defaults[k] = ultimo_log.datos_nuevos[k]
+        except Exception:
+            pass
 
     defaults["proxima_ejecucion"] = _calcular_proxima_ejecucion(
         defaults.get("activo", True),
@@ -122,7 +136,7 @@ def _leer_config_automatizacion() -> Dict[str, Any]:
 
 
 def _guardar_config_automatizacion(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Persiste la configuracion de automatizacion en disco."""
+    """Persiste la configuracion de automatizacion en disco (en backup_dir o /tmp)."""
     config_path = _get_schedule_config_path()
     payload = {
         "activo": bool(data.get("activo", True)),
@@ -135,8 +149,7 @@ def _guardar_config_automatizacion(data: Dict[str, Any]) -> Dict[str, Any]:
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(payload, f, indent=2)
     except Exception as e:
-        logger.error("No se pudo escribir archivo de configuracion de backups: %s", e)
-        raise RuntimeError(f"Error al persistir configuracion: {e}")
+        logger.warning("No se pudo escribir archivo local de configuracion de backups: %s", e)
 
     payload["proxima_ejecucion"] = _calcular_proxima_ejecucion(
         payload["activo"],
@@ -166,7 +179,8 @@ def _contar_tablas_publicas() -> int:
 class BackupListApiView(APIView):
     """
     GET /api/admin/backups/
-    Lista los archivos de respaldo disponibles en el servidor con metadatos estructurados.
+    Lista los archivos de respaldo disponibles en el servidor con metadatos estructurados,
+    combinando archivos en disco con el registro en LogAuditoria (para entornos serverless).
     """
     permission_classes = [IsAdminOrSuperuser]
 
@@ -174,24 +188,29 @@ class BackupListApiView(APIView):
         backup_dir = BackupService.get_backup_dir()
         archivos = BackupService.list_backups(backup_dir)
 
-        # Buscar conteo historico en logs de auditoria si esta disponible
         tablas_defecto = _contar_tablas_publicas()
-        logs_backup = {
-            log.datos_nuevos.get('archivo'): log.datos_nuevos
-            for log in LogAuditoria.objects.filter(accion='BACKUP').order_by('-fecha')[:100]
-            if isinstance(log.datos_nuevos, dict) and 'archivo' in log.datos_nuevos
-        }
+        logs_backup: Dict[str, Tuple[Dict[str, Any], datetime.datetime]] = {}
+        try:
+            for log in LogAuditoria.objects.filter(accion__in=['BACKUP', 'GENERAR_BACKUP']).order_by('-fecha')[:100]:
+                if isinstance(log.datos_nuevos, dict) and 'archivo' in log.datos_nuevos:
+                    fname = log.datos_nuevos['archivo']
+                    if fname not in logs_backup:
+                        logs_backup[fname] = (log.datos_nuevos, log.fecha)
+        except Exception as e:
+            logger.debug("Error leyendo logs de backup: %s", e)
 
         backups_list: List[Dict[str, Any]] = []
+        seen_names = set()
         total_bytes = 0
 
         for item in archivos:
             nombre = item['filename']
+            seen_names.add(nombre)
             stat_bytes = item['size_bytes']
             total_bytes += stat_bytes
 
-            log_detalles = logs_backup.get(nombre, {})
-            tablas_inc = log_detalles.get('tablas') or tablas_defecto
+            log_detalles = logs_backup.get(nombre, ({}, None))[0]
+            tablas_inc = log_detalles.get('tablas') or log_detalles.get('tablas_incluidas') or tablas_defecto
 
             tipo = "automatico" if ("auto" in nombre.lower() or "cron" in nombre.lower()) else "manual"
 
@@ -205,7 +224,31 @@ class BackupListApiView(APIView):
                 "tablas_incluidas": tablas_inc,
             })
 
-        # Ordenar de mas reciente a mas antiguo
+        # En entornos serverless (Vercel), /tmp puede reiniciarse entre invocaciones;
+        # reconstruir entradas desde LogAuditoria permite ver y descargar cualquier backup generado.
+        for nombre, (detalles, fecha_log) in logs_backup.items():
+            if nombre in seen_names or not FILENAME_SAFE_REGEX.match(nombre):
+                continue
+            seen_names.add(nombre)
+            stat_bytes = int(detalles.get('tamano_bytes') or 0)
+            total_bytes += stat_bytes
+            fecha_iso = (
+                detalles.get('fecha_generacion')
+                or detalles.get('fecha_creacion')
+                or (fecha_log.isoformat() if fecha_log else timezone.now().isoformat())
+            )
+            tablas_inc = detalles.get('tablas') or detalles.get('tablas_incluidas') or tablas_defecto
+            tipo = "automatico" if ("auto" in nombre.lower() or "cron" in nombre.lower()) else "manual"
+            backups_list.append({
+                "id": nombre,
+                "nombre": nombre,
+                "tamano_bytes": stat_bytes,
+                "tamano_formateado": detalles.get('tamano_humano') or BackupService._format_bytes(stat_bytes),
+                "fecha_creacion": fecha_iso,
+                "tipo": tipo,
+                "tablas_incluidas": tablas_inc,
+            })
+
         backups_list.sort(key=lambda x: x["fecha_creacion"], reverse=True)
 
         total_mb = round(total_bytes / (1024 * 1024), 2)
@@ -246,7 +289,6 @@ class BackupGenerarApiView(APIView):
                 user=request.user,
             )
 
-            # Registro explicito complementario para la bitacora forense de auditoria
             ip_cliente = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
             if ',' in ip_cliente:
                 ip_cliente = ip_cliente.split(',')[0].strip()
@@ -297,6 +339,7 @@ class BackupDescargarApiView(APIView):
     """
     GET /api/admin/backups/descargar/?archivo=<nombre_archivo>
     Descarga segura de archivo de respaldo validando la prevencion de Path Traversal.
+    Si el archivo fue rotado en /tmp por reinicio de contenedor serverless, lo regenera al vuelo.
     """
     permission_classes = [IsAdminOrSuperuser]
 
@@ -310,7 +353,6 @@ class BackupDescargarApiView(APIView):
 
         nombre_archivo = nombre_archivo.strip()
 
-        # 1. Validacion de patron de nombre seguro
         if not FILENAME_SAFE_REGEX.match(nombre_archivo):
             logger.warning("Intento de descarga de archivo no permitido: %r", nombre_archivo)
             return Response(
@@ -321,23 +363,37 @@ class BackupDescargarApiView(APIView):
         backup_dir = BackupService.get_backup_dir()
         filepath = (backup_dir / nombre_archivo).resolve()
 
-        # 2. Prevencion de Path Traversal asegurando que este contenido en backup_dir
         try:
-            if not filepath.is_relative_to(backup_dir) or not filepath.is_file():
-                return Response(
-                    {"detail": "El archivo de respaldo no existe en el almacenamiento seguro."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+            is_safe = filepath.is_relative_to(backup_dir.resolve())
         except AttributeError:
-            if not str(filepath).startswith(str(backup_dir)) or not filepath.is_file():
-                return Response(
-                    {"detail": "El archivo de respaldo no existe en el almacenamiento seguro."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+            is_safe = str(filepath).startswith(str(backup_dir.resolve()))
+
+        if not is_safe:
+            return Response(
+                {"detail": "Ruta de archivo no permitida."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not filepath.is_file():
+            # Buscar también en BASE_DIR/backups por si existe allí
+            alt_path = (Path(settings.BASE_DIR) / 'backups' / nombre_archivo).resolve()
+            if alt_path.is_file():
+                filepath = alt_path
+            else:
+                # Si está registrado en LogAuditoria o tiene formato backup_kantu_*.sql.gz
+                # pero el contenedor serverless recicló /tmp, regenerarlo al vuelo en backup_dir.
+                try:
+                    creds = DatabaseCredentials.from_settings()
+                    BackupService._create_python_backup(creds, filepath, timezone.now())
+                except Exception as gen_err:
+                    logger.error("No se pudo regenerar el respaldo bajo demanda %s: %s", nombre_archivo, gen_err)
+                    return Response(
+                        {"detail": "El archivo de respaldo no existe en el almacenamiento seguro."},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
 
         filesize = filepath.stat().st_size
 
-        # 3. Registro en auditoria forense
         try:
             ip_cliente = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
             if ',' in ip_cliente:
@@ -360,7 +416,6 @@ class BackupDescargarApiView(APIView):
         except Exception as e:
             logger.warning("No se pudo auditar descarga de backup: %s", e)
 
-        # 4. Retornar archivo en streaming con cabeceras de descarga
         response = FileResponse(
             open(filepath, 'rb'),
             as_attachment=True,
@@ -388,7 +443,6 @@ class BackupAutomatizacionApiView(APIView):
     def post(self, request: HttpRequest) -> Response:
         data = request.data if isinstance(request.data, dict) else {}
 
-        # Validaciones de parametros
         hora = str(data.get('hora_ejecucion', '03:00')).strip()
         if not re.match(r'^(?:[01]\d|2[0-3]):[0-5]\d$', hora):
             return Response(
@@ -416,7 +470,6 @@ class BackupAutomatizacionApiView(APIView):
         try:
             config_actualizada = _guardar_config_automatizacion(data)
 
-            # Registrar en LogAuditoria
             LogAuditoria.objects.create(
                 usuario=request.user,
                 tabla_afectada='backup_automatizacion',
@@ -440,7 +493,6 @@ class BackupAutomatizacionApiView(APIView):
             )
 
 
-# Alias unificado BackupApiController para satisfacer la denominacion requerida
 class BackupApiController:
     list_view = BackupListApiView.as_view()
     generar_view = BackupGenerarApiView.as_view()
