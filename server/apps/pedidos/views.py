@@ -266,6 +266,75 @@ class IniciarPagoStripeView(APIView):
         )
 
 
+def _validar_pago_stripe_checkout(request, payment_intent_id: str, cotizaciones: dict):
+    """Verifica el PaymentIntent de Stripe contra el total actual y retorna (intent, tasa_usd, error_response)."""
+    if not payment_intent_id:
+        return None, None, Response(
+            {'error': 'Falta el identificador del pago con tarjeta.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if not settings.STRIPE_SECRET_KEY:
+        return None, None, _stripe_no_configurado()
+
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+    try:
+        intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+    except stripe.error.StripeError as exc:
+        return None, None, Response(
+            {'error': f'No se pudo verificar el pago con Stripe: {exc.user_message or str(exc)}'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if intent.status != 'succeeded':
+        return None, None, Response(
+            {'error': f'El pago con tarjeta todavía no se completó (estado actual: {intent.status}).'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if getattr(intent, 'currency', 'usd') != 'usd':
+        return None, None, Response({'error': 'El pago no está expresado en USD.'}, status=400)
+
+    metadata = getattr(intent, 'metadata', {}) or {}
+    if hasattr(metadata, 'to_dict'):
+        metadata = metadata.to_dict()
+    if str(metadata.get('cliente_id', '')) != str(request.user.id):
+        return None, None, Response({'error': 'El pago con tarjeta no pertenece a este usuario.'}, status=403)
+    if Pago.objects.filter(referencia_transaccion=payment_intent_id).exists():
+        return None, None, Response({'error': 'Este pago con tarjeta ya se utilizó en otro pedido.'}, status=409)
+
+    total_bs_actual = sum((c['total'] for c in cotizaciones.values()), Decimal('0.00'))
+    codigos = normalizar_codigos(request.data.get('cupones'))
+    if codigos and metadata.get('cupones') != json.dumps(codigos, sort_keys=True):
+        return None, None, Response({'error': 'Los cupones cambiaron. Inicia nuevamente el pago con tarjeta.'}, status=400)
+
+    tasa_usd = Decimal(metadata['tipo_cambio_usd']) if metadata.get('tipo_cambio_usd') else _tasa_usd_bob()
+    monto_esperado = _usd_centavos(total_bs_actual, tasa_usd)
+    if abs(intent.amount - monto_esperado) > 1:
+        reembolsado = _reembolsar(payment_intent_id)
+        return None, None, Response(
+            {
+                'error': (
+                    'El carrito cambió después de iniciar el pago y el monto cobrado '
+                    'ya no coincide con el total. '
+                    + ('Se reembolsó el pago; vuelve a intentarlo.' if reembolsado else
+                       f'Contacta a soporte indicando el pago {payment_intent_id}.')
+                ),
+                'reembolsado': reembolsado,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return intent, tasa_usd, None
+
+
+def _resolver_nombre_metodo_pago(metodo_pago_valor: str, es_stripe: bool) -> str:
+    if es_stripe:
+        return NOMBRE_METODO_STRIPE
+    if metodo_pago_valor.lower() == 'qr':
+        return NOMBRE_METODO_QR
+    if metodo_pago_valor.lower() in ('efectivo', ''):
+        return NOMBRE_METODO_EFECTIVO
+    return metodo_pago_valor
+
+
 class CheckoutView(APIView):
     """POST /api/pedidos/carrito/checkout/ — Procesa la compra de los carritos del cliente,
     generando Pedido e ItemPedido por cada tienda, activando los triggers de PostgreSQL
@@ -300,72 +369,13 @@ class CheckoutView(APIView):
         cambio = tipo_cambio_vigente()
         tasa_usd = cambio.usd_bob if cambio else None
 
+        intent = None
         if es_stripe:
-            if not payment_intent_id:
-                return Response(
-                    {'error': 'Falta el identificador del pago con tarjeta.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            intent, tasa_usd, error_stripe = _validar_pago_stripe_checkout(request, payment_intent_id, cotizaciones)
+            if error_stripe is not None:
+                return error_stripe
 
-            if not settings.STRIPE_SECRET_KEY:
-                return _stripe_no_configurado()
-
-            stripe.api_key = settings.STRIPE_SECRET_KEY
-            try:
-                intent = stripe.PaymentIntent.retrieve(payment_intent_id)
-            except stripe.error.StripeError as exc:
-                return Response(
-                    {'error': f'No se pudo verificar el pago con Stripe: {exc.user_message or str(exc)}'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            if intent.status != 'succeeded':
-                return Response(
-                    {'error': f'El pago con tarjeta todavía no se completó (estado actual: {intent.status}).'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            if getattr(intent, 'currency', 'usd') != 'usd':
-                return Response({'error': 'El pago no está expresado en USD.'}, status=400)
-            metadata = getattr(intent, 'metadata', {}) or {}
-            if hasattr(metadata, 'to_dict'):
-                metadata = metadata.to_dict()
-            if str(metadata.get('cliente_id', '')) != str(request.user.id):
-                return Response({'error': 'El pago con tarjeta no pertenece a este usuario.'}, status=403)
-            if Pago.objects.filter(referencia_transaccion=payment_intent_id).exists():
-                return Response({'error': 'Este pago con tarjeta ya se utilizó en otro pedido.'}, status=409)
-            total_bs_actual = sum((c['total'] for c in cotizaciones.values()), Decimal('0.00'))
-            codigos = normalizar_codigos(request.data.get('cupones'))
-            if codigos and metadata.get('cupones') != json.dumps(codigos, sort_keys=True):
-                return Response({'error': 'Los cupones cambiaron. Inicia nuevamente el pago con tarjeta.'}, status=400)
-            tasa_usd = Decimal(metadata['tipo_cambio_usd']) if metadata.get('tipo_cambio_usd') else _tasa_usd_bob()
-            monto_esperado = _usd_centavos(total_bs_actual, tasa_usd)
-            # Tolerancia de 1 centavo de USD por redondeo entre el intento y el
-            # recálculo del carrito.
-            if abs(intent.amount - monto_esperado) > 1:
-                reembolsado = _reembolsar(payment_intent_id)
-                return Response(
-                    {
-                        'error': (
-                            'El carrito cambió después de iniciar el pago y el monto cobrado '
-                            'ya no coincide con el total. '
-                            + ('Se reembolsó el pago; vuelve a intentarlo.' if reembolsado else
-                               f'Contacta a soporte indicando el pago {payment_intent_id}.')
-                        ),
-                        'reembolsado': reembolsado,
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            metodo_pago_nombre = NOMBRE_METODO_STRIPE
-        elif metodo_pago_valor.lower() == 'qr':
-            metodo_pago_nombre = NOMBRE_METODO_QR
-        elif metodo_pago_valor.lower() in ('efectivo', ''):
-            metodo_pago_nombre = NOMBRE_METODO_EFECTIVO
-        else:
-            # Etiquetas propias (p.ej. las del móvil, "QR Simple (Bolivia)") se
-            # respetan tal cual en vez de forzarlas a un nombre semilla.
-            metodo_pago_nombre = metodo_pago_valor
+        metodo_pago_nombre = _resolver_nombre_metodo_pago(metodo_pago_valor, es_stripe)
 
         metodo_pago_obj, _ = MetodoPago.objects.get_or_create(nombre=metodo_pago_nombre)
 

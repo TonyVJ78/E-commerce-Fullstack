@@ -9,7 +9,7 @@ from apps.crm.models import (
     CampanaCarrito,
     RegistroRecuperacionCarrito,
 )
-from apps.pedidos.models import Pedido, Carrito
+from apps.pedidos.models import Pedido
 
 
 class UsuarioResumenSerializer(serializers.Serializer):

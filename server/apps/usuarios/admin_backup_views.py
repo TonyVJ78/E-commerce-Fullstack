@@ -4,15 +4,12 @@ Protegidas con verificación estricta para Superadministradores (is_superuser = 
 """
 
 import logging
-import os
 import re
-from pathlib import Path
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
-from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 

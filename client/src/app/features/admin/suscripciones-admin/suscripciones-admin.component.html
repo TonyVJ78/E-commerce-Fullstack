@@ -1,0 +1,184 @@
+<div class="layout suscripciones-page">
+  <header class="page-head">
+    <div>
+      <p class="eyebrow">CU-37 · Administración de Plataforma</p>
+      <h1>Planes de Suscripción y Liquidación de Tiendas</h1>
+      <p>Configura planes comerciales, asigna vigencias a cada tienda y liquida ventas netas descontando comisión.</p>
+    </div>
+    <a routerLink="/dashboard" class="btn btn--ghost">Volver al Panel</a>
+  </header>
+
+  <nav class="tabs" aria-label="Gestión CU-37">
+    <button type="button" class="tab" [class.active]="pestana() === 'planes'" (click)="pestana.set('planes')">
+      Planes de Suscripción ({{ planes().length }})
+    </button>
+    <button type="button" class="tab" [class.active]="pestana() === 'tiendas'" (click)="pestana.set('tiendas')">
+      Suscripciones por Tienda ({{ tiendas().length }})
+    </button>
+    <button type="button" class="tab" [class.active]="pestana() === 'liquidaciones'" (click)="pestana.set('liquidaciones')">
+      Liquidaciones ({{ liquidaciones().length }})
+    </button>
+  </nav>
+
+  @if (mensaje()) {
+    <div class="alert alert--ok" role="status">{{ mensaje() }}</div>
+  }
+  @if (error()) {
+    <div class="alert alert--err" role="alert">{{ error() }}</div>
+  }
+
+  @if (pestana() === 'planes') {
+    <section class="grid-two">
+      <form class="card form-card" (ngSubmit)="crearPlan()">
+        <h2>Nuevo Plan de Plataforma</h2>
+        <label>Código <input type="text" [(ngModel)]="planCodigo" name="codigo" placeholder="ej. profesional" required /></label>
+        <label>Nombre <input type="text" [(ngModel)]="planNombre" name="nombre" placeholder="Plan Profesional" required /></label>
+        <label>Descripción <textarea [(ngModel)]="planDescripcion" name="descripcion" rows="2"></textarea></label>
+        <div class="row-2">
+          <label>Precio mensual (Bs) <input type="number" step="0.01" min="0" [(ngModel)]="planPrecio" name="precio" /></label>
+          <label>Comisión (%) <input type="number" step="0.01" min="0" max="100" [(ngModel)]="planComision" name="comision" /></label>
+        </div>
+        <div class="row-2">
+          <label>Máx. productos <input type="number" min="1" [(ngModel)]="planMaxProductos" name="maxProd" /></label>
+          <label>Máx. usuarios <input type="number" min="1" [(ngModel)]="planMaxUsuarios" name="maxUsr" /></label>
+        </div>
+        <button type="submit" class="btn btn--primary">Crear Plan</button>
+      </form>
+
+      <div class="card">
+        <h2>Planes Registrados</h2>
+        @for (p of planes(); track p.id) {
+          <div class="item-row">
+            <div>
+              <strong>{{ p.nombre }}</strong> <span class="badge">{{ p.codigo }}</span>
+              <div class="meta">Bs {{ p.precio_mensual }}/mes · Comisión {{ p.comision_porcentaje }}%</div>
+            </div>
+            <button type="button" class="btn btn--ghost" (click)="alternarEstadoPlan(p)">
+              {{ p.activo ? 'Desactivar' : 'Reactivar' }}
+            </button>
+          </div>
+        } @empty {
+          <p class="empty">No hay planes creados todavía.</p>
+        }
+      </div>
+    </section>
+  }
+
+  @if (pestana() === 'tiendas') {
+    <section class="grid-two">
+      <form class="card form-card" (ngSubmit)="asignarSuscripcion()">
+        <h2>Asignar / Renovar Suscripción</h2>
+        <label>
+          Tienda
+          <select [(ngModel)]="tiendaSeleccionadaId" name="tiendaId">
+            @for (t of tiendas(); track t.tienda_id) {
+              <option [ngValue]="t.tienda_id">{{ t.tienda_nombre }} ({{ t.propietario_email }})</option>
+            }
+          </select>
+        </label>
+        <label>
+          Plan
+          <select [(ngModel)]="planAsignadoId" name="planId">
+            @for (p of planes(); track p.id) {
+              <option [ngValue]="p.id">{{ p.nombre }} · {{ p.comision_porcentaje }}%</option>
+            }
+          </select>
+        </label>
+        <label>
+          Estado
+          <select [(ngModel)]="estadoAsignado" name="estado">
+            <option value="activa">Activa</option>
+            <option value="prueba">Prueba</option>
+            <option value="vencida">Vencida</option>
+            <option value="suspendida">Suspendida</option>
+          </select>
+        </label>
+        <div class="row-2">
+          <label>Inicio <input type="date" [(ngModel)]="fechaInicioSusc" name="fInicio" /></label>
+          <label>Vencimiento <input type="date" [(ngModel)]="fechaFinSusc" name="fFin" /></label>
+        </div>
+        <button type="submit" class="btn btn--primary">Guardar Suscripción</button>
+      </form>
+
+      <div class="card">
+        <h2>Estado por Tienda</h2>
+        @for (t of tiendas(); track t.tienda_id) {
+          <div class="item-row">
+            <div>
+              <strong>{{ t.tienda_nombre }}</strong>
+              @if (t.suscripcion; as s) {
+                <div class="meta">{{ s.plan_nombre }} · {{ s.estado | uppercase }} · Hasta {{ s.fecha_fin }}</div>
+              } @else {
+                <div class="meta">Sin suscripción asignada (comisión base 5%)</div>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+  }
+
+  @if (pestana() === 'liquidaciones') {
+    <section class="grid-two">
+      <div class="card form-card">
+        <h2>Calcular y Generar Liquidación</h2>
+        <label>
+          Tienda
+          <select [(ngModel)]="liqTiendaId" name="liqTienda">
+            @for (t of tiendas(); track t.tienda_id) {
+              <option [ngValue]="t.tienda_id">{{ t.tienda_nombre }}</option>
+            }
+          </select>
+        </label>
+        <div class="row-2">
+          <label>Desde <input type="date" [(ngModel)]="liqInicio" name="liqInicio" /></label>
+          <label>Hasta <input type="date" [(ngModel)]="liqFin" name="liqFin" /></label>
+        </div>
+        <label>Notas <input type="text" [(ngModel)]="liqNotas" name="liqNotas" placeholder="Opcional" /></label>
+        <div class="row-2">
+          <button type="button" class="btn btn--ghost" (click)="previsualizar()">Previsualizar</button>
+          <button type="button" class="btn btn--primary" (click)="generarLiquidacion()">Generar Liquidación</button>
+        </div>
+
+        @if (previsualizacion(); as prev) {
+          <div class="preview-box">
+            <div><strong>{{ prev.tienda_nombre }}</strong> · {{ prev.cantidad_pedidos }} pedido(s)</div>
+            <div>Ventas brutas: <strong>Bs {{ prev.total_ventas }}</strong></div>
+            <div>Comisión ({{ prev.comision_porcentaje }}%): <strong>Bs {{ prev.monto_comision }}</strong></div>
+            <div>Neto a transferir: <strong>Bs {{ prev.monto_neto }}</strong></div>
+          </div>
+        }
+      </div>
+
+      <div class="card">
+        <h2>Historial de Liquidaciones</h2>
+        @for (l of liquidaciones(); track l.id) {
+          <div class="item-row col-stack">
+            <div class="row-between">
+              <strong>#{{ l.id }} · {{ l.tienda_nombre }}</strong>
+              <span class="badge">{{ l.estado | uppercase }}</span>
+            </div>
+            <div class="meta">
+              {{ l.periodo_inicio }} → {{ l.periodo_fin }} · {{ l.cantidad_pedidos }} ped. · Ventas Bs {{ l.total_ventas }} · Neto <strong>Bs {{ l.monto_neto }}</strong>
+            </div>
+            @if (l.referencia_pago) {
+              <div class="meta">Ref. pago: {{ l.referencia_pago }}</div>
+            }
+            @if (l.estado === 'pendiente' || l.estado === 'aprobada') {
+              <div class="actions-inline">
+                <input type="text" [(ngModel)]="referenciaPorId[l.id]" [name]="'ref_' + l.id" placeholder="Nro. comprobante" />
+                @if (l.estado === 'pendiente') {
+                  <button type="button" class="btn btn--ghost" (click)="accionLiquidacion(l, 'aprobar')">Aprobar</button>
+                }
+                <button type="button" class="btn btn--primary" (click)="accionLiquidacion(l, 'pagar')">Registrar Pago</button>
+                <button type="button" class="btn btn--ghost" (click)="accionLiquidacion(l, 'anular')">Anular</button>
+              </div>
+            }
+          </div>
+        } @empty {
+          <p class="empty">No hay liquidaciones registradas.</p>
+        }
+      </div>
+    </section>
+  }
+</div>

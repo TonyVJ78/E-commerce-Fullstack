@@ -5,7 +5,7 @@ llevan al día local (America/La_Paz) y se manejan como ordinales enteros.
 """
 
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time
 
 import numpy as np
 from django.db.models import Count

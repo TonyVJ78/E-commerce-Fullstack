@@ -25,6 +25,18 @@
       }
     },
     {
+      "source": "/admin/suscripciones",
+      "destination": {
+        "service": "frontend"
+      }
+    },
+    {
+      "source": "/admin/backups",
+      "destination": {
+        "service": "frontend"
+      }
+    },
+    {
       "source": "/admin/(.*)",
       "destination": {
         "service": "backend"

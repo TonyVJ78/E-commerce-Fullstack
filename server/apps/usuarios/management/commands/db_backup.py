@@ -3,9 +3,7 @@ Management Command: python manage.py db_backup
 Genera un respaldo íntegro y comprimido (.sql.gz) de la base de datos PostgreSQL (Neon Tech).
 """
 
-from pathlib import Path
 from django.core.management.base import BaseCommand, CommandError
-from django.conf import settings
 from apps.usuarios.services.backup_service import BackupService, BinaryDetector, DatabaseCredentials
 
 

@@ -89,3 +89,122 @@ class TipoCambio(models.Model):
 
     def __str__(self):
         return f'{self.fecha}: 1 USD = Bs {self.usd_bob}'
+
+
+class PlanSuscripcion(models.Model):
+    """Plan de suscripción de la plataforma Kantu Market para tiendas (CU-37)."""
+
+    codigo = models.SlugField(max_length=40, unique=True)
+    nombre = models.CharField(max_length=80)
+    descripcion = models.TextField(blank=True, default='')
+    precio_mensual = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    comision_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('5.00'))
+    max_tiendas = models.PositiveIntegerField(default=3)
+    max_productos = models.PositiveIntegerField(null=True, blank=True)
+    max_usuarios = models.PositiveIntegerField(null=True, blank=True)
+    activo = models.BooleanField(default=True)
+    creado = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'plan_suscripcion'
+        verbose_name = 'Plan de suscripción'
+        verbose_name_plural = 'Planes de suscripción'
+        ordering = ['precio_mensual', 'id']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(precio_mensual__gte=0),
+                name='plan_suscripcion_precio_no_negativo',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(comision_porcentaje__gte=0) & models.Q(comision_porcentaje__lte=100),
+                name='plan_suscripcion_comision_valida',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.nombre} (Bs {self.precio_mensual}/mes · {self.comision_porcentaje}%)'
+
+
+class SuscripcionTienda(models.Model):
+    """Suscripción asignada a una tienda dentro de la plataforma (CU-37)."""
+
+    class Estado(models.TextChoices):
+        ACTIVA = 'activa', 'Activa'
+        PRUEBA = 'prueba', 'Prueba'
+        VENCIDA = 'vencida', 'Vencida'
+        SUSPENDIDA = 'suspendida', 'Suspendida'
+
+    tienda = models.ForeignKey(
+        'tiendas.Tienda',
+        on_delete=models.CASCADE,
+        related_name='suscripciones',
+    )
+    plan = models.ForeignKey(
+        PlanSuscripcion,
+        on_delete=models.PROTECT,
+        related_name='suscripciones',
+    )
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.ACTIVA)
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    auto_renovar = models.BooleanField(default=True)
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'suscripcion_tienda'
+        verbose_name = 'Suscripción de tienda'
+        verbose_name_plural = 'Suscripciones de tiendas'
+        ordering = ['-fecha_fin', '-id']
+
+    def __str__(self):
+        return f'{self.tienda.nombre} · {self.plan.nombre} ({self.estado})'
+
+
+class LiquidacionTienda(models.Model):
+    """Liquidación de ventas de una tienda descontando la comisión de plataforma (CU-37)."""
+
+    class Estado(models.TextChoices):
+        PENDIENTE = 'pendiente', 'Pendiente'
+        APROBADA = 'aprobada', 'Aprobada'
+        PAGADA = 'pagada', 'Pagada'
+        ANULADA = 'anulada', 'Anulada'
+
+    tienda = models.ForeignKey(
+        'tiendas.Tienda',
+        on_delete=models.CASCADE,
+        related_name='liquidaciones',
+    )
+    periodo_inicio = models.DateField()
+    periodo_fin = models.DateField()
+    cantidad_pedidos = models.PositiveIntegerField(default=0)
+    total_ventas = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    comision_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('5.00'))
+    monto_comision = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    monto_neto = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PENDIENTE)
+    referencia_pago = models.CharField(max_length=120, blank=True, default='')
+    notas = models.TextField(blank=True, default='')
+    generado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='liquidaciones_generadas',
+    )
+    creado = models.DateTimeField(auto_now_add=True)
+    pagado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'liquidacion_tienda'
+        verbose_name = 'Liquidación de tienda'
+        verbose_name_plural = 'Liquidaciones de tiendas'
+        ordering = ['-creado', '-id']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(monto_neto__gte=0) & models.Q(total_ventas__gte=0),
+                name='liquidacion_tienda_montos_no_negativos',
+            ),
+        ]
+
+    def __str__(self):
+        return f'Liquidación #{self.id} · {self.tienda.nombre} ({self.estado})'

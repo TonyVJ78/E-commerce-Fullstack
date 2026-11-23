@@ -20,7 +20,7 @@
 
     <div class="currency-tools">
         <!-- BRL solo consulta catálogo; no cambia moneda del carrito ni del pago. -->
-        @if (puedeComprar() || monedaService.brlPreparado()) {
+        @if (currentUser() || monedaService.brlPreparado()) {
           <span class="currency-label">Moneda de consulta</span>
           <div class="moneda-selector" role="group" aria-label="Moneda de los precios">
             <button
@@ -82,19 +82,47 @@
           <a routerLink="/cliente/soporte" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="menuOpen = false">Soporte y Reclamos</a>
         }
 
-        <!-- Enlaces para Empresas / Vendedores -->
+        <!-- Enlaces para Empresas / Vendedores (agrupados para mayor orden y accesibilidad) -->
         @if (user.rol === 'empresa') {
-          <a routerLink="/panel-vendedor" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="menuOpen = false">Panel Vendedor</a>
-          <a routerLink="/tiendas" [routerLinkActiveOptions]="{exact: true}" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="menuOpen = false">Mis Tiendas</a>
-          <a routerLink="/tiendas/productos" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="menuOpen = false">Inventario</a>
-          <a routerLink="/tiendas/pedidos" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="menuOpen = false">Pedidos Recibidos</a>
-          <a routerLink="/tiendas/tickets" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="menuOpen = false">Atención al cliente</a>
-          <a routerLink="/tiendas/campana-carrito" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="menuOpen = false">Recuperación de carrito</a>
-          <a routerLink="/tiendas/clientes/segmentacion" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="menuOpen = false">Segmentación de Clientes</a>
-          <a routerLink="/tiendas/satisfaccion" routerLinkActive="active" (click)="menuOpen = false">Satisfacción</a>
-          <a routerLink="/tiendas/gastos" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="menuOpen = false">Gastos</a>
-          <a routerLink="/tiendas/identidad" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="menuOpen = false">Identidad de Marca</a>
-          <a routerLink="/informes" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="menuOpen = false">Informes IA</a>
+          <a routerLink="/panel-vendedor" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="cerrarMenus()">Panel Vendedor</a>
+
+          <div class="nav-dropdown" [class.open]="openDropdown === 'tiendas'">
+            <button type="button" class="nav-dropdown-trigger" (click)="toggleDropdown('tiendas')" [attr.aria-expanded]="openDropdown === 'tiendas'">
+              <span>Tiendas y Catálogo</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="nav-dropdown-menu" role="menu">
+              <a routerLink="/tiendas" [routerLinkActiveOptions]="{exact: true}" routerLinkActive="active" (click)="cerrarMenus()">Mis Tiendas</a>
+              <a routerLink="/tiendas/productos" routerLinkActive="active" (click)="cerrarMenus()">Inventario</a>
+              <a routerLink="/tiendas/identidad" routerLinkActive="active" (click)="cerrarMenus()">Identidad de Marca</a>
+              <a routerLink="/tiendas/suscripcion" routerLinkActive="active" (click)="cerrarMenus()">Planes y Suscripción</a>
+            </div>
+          </div>
+
+          <div class="nav-dropdown" [class.open]="openDropdown === 'ventas'">
+            <button type="button" class="nav-dropdown-trigger" (click)="toggleDropdown('ventas')" [attr.aria-expanded]="openDropdown === 'ventas'">
+              <span>Ventas y Clientes</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="nav-dropdown-menu" role="menu">
+              <a routerLink="/tiendas/pedidos" routerLinkActive="active" (click)="cerrarMenus()">Pedidos Recibidos</a>
+              <a routerLink="/tiendas/tickets" routerLinkActive="active" (click)="cerrarMenus()">Atención al cliente</a>
+              <a routerLink="/tiendas/campana-carrito" routerLinkActive="active" (click)="cerrarMenus()">Recuperación de carrito</a>
+              <a routerLink="/tiendas/clientes/segmentacion" routerLinkActive="active" (click)="cerrarMenus()">Segmentación de Clientes</a>
+              <a routerLink="/tiendas/satisfaccion" routerLinkActive="active" (click)="cerrarMenus()">Satisfacción</a>
+            </div>
+          </div>
+
+          <div class="nav-dropdown" [class.open]="openDropdown === 'finanzas'">
+            <button type="button" class="nav-dropdown-trigger" (click)="toggleDropdown('finanzas')" [attr.aria-expanded]="openDropdown === 'finanzas'">
+              <span>Finanzas e IA</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="nav-dropdown-menu" role="menu">
+              <a routerLink="/tiendas/gastos" routerLinkActive="active" (click)="cerrarMenus()">Gastos Operativos</a>
+              <a routerLink="/informes" routerLinkActive="active" (click)="cerrarMenus()">Informes IA</a>
+            </div>
+          </div>
         }
 
         <!-- Enlaces para Administradores -->
@@ -114,25 +142,7 @@
           </a>
         }
 
-        <!-- Selector de moneda: USD solo si hay cotizacion oficial -->
-        @if (puedeComprar()) {
-          <div class="moneda-selector" role="group" aria-label="Moneda de los precios">
-            <button
-              type="button"
-              aria-label="Ver precios en bolivianos"
-              [attr.aria-pressed]="!monedaService.mostrarUsd()"
-              (click)="monedaService.elegir('BOB')">Bs</button>
-            <button
-              type="button"
-              [attr.aria-label]="monedaService.usdDisponible() ? 'Ver precios en dólares' : 'Dólares no disponibles: no hay tipo de cambio oficial cargado'"
-              [attr.aria-pressed]="monedaService.mostrarUsd()"
-              [disabled]="!monedaService.usdDisponible()"
-              [title]="monedaService.usdDisponible() ? 'Ver precios en dólares' : 'No hay tipo de cambio oficial cargado'"
-              (click)="monedaService.elegir('USD')">USD</button>
-          </div>
-        }
-
-        <!-- Boton de Carrito (Desktop - cualquier usuario autenticado) -->
+        <!-- Boton de Carrito (Desktop - solo clientes) -->
         @if (puedeComprar()) {
           <button
             class="cart-trigger-btn desktop-only"

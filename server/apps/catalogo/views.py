@@ -9,7 +9,7 @@ from rest_framework.response import Response
 
 from apps.tiendas.models import Tienda
 from apps.usuarios.audit import ACCION_ACTUALIZAR, ACCION_CREAR, registrar_auditoria
-from apps.usuarios.permissions import IsClienteUser, IsEmpresa
+from apps.usuarios.permissions import IsEmpresa
 
 from .models import Categoria, Producto, Variante, VarianteStockMovimiento
 from .serializers import (

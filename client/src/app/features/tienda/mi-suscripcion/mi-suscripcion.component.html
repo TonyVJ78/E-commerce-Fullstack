@@ -1,0 +1,139 @@
+<section class="mi-suscripcion-page">
+  <header class="page-header">
+    <div>
+      <a routerLink="/panel-vendedor" class="breadcrumb-link">← Volver al Panel Vendedor</a>
+      <h1>Planes de Suscripción</h1>
+      <p>Administra el plan de tus tiendas, revisa tu límite de sucursales y paga de forma segura con Stripe.</p>
+    </div>
+    @if (datos(); as info) {
+      <div class="uso-tiendas-pill">
+        <span class="pill-label">Tiendas registradas</span>
+        <strong>{{ info.tiendas_actuales }} / {{ info.suscripcion_actual?.max_tiendas ?? 3 }}</strong>
+      </div>
+    }
+  </header>
+
+  @if (mensaje()) {
+    <div class="alert alert--ok">{{ mensaje() }}</div>
+  }
+  @if (error()) {
+    <div class="alert alert--error">{{ error() }}</div>
+  }
+
+  @if (planPendiente(); as planPago) {
+    <div class="stripe-modal-overlay" role="dialog" aria-modal="true" aria-label="Pagar suscripción con Stripe">
+      <div class="stripe-modal-card">
+        <div class="stripe-modal-head">
+          <div>
+            <span class="plan-codigo">Pago seguro con Stripe</span>
+            <h2>{{ planPago.nombre }}</h2>
+            <p>Incluye hasta <strong>{{ planPago.max_tiendas }} tiendas</strong> · Comisión {{ planPago.comision_porcentaje }}%</p>
+          </div>
+          <button type="button" class="btn-close" (click)="cancelarPagoStripe()" aria-label="Cerrar">✕</button>
+        </div>
+
+        @if (intentoPago(); as infoPago) {
+          <div class="stripe-resumen">
+            <div>
+              <span>Total mensual</span>
+              <strong>Bs {{ infoPago.monto_bs }}</strong>
+            </div>
+            <div>
+              <span>Cobro en Stripe (USD)</span>
+              <strong>US$ {{ infoPago.monto_usd }}</strong>
+            </div>
+            <div>
+              <span>Tipo de cambio</span>
+              <small>1 USD = Bs {{ infoPago.tipo_cambio_usd }}</small>
+            </div>
+          </div>
+        }
+
+        @if (cargandoStripe()) {
+          <p class="loading-text">Cargando formulario seguro de Stripe...</p>
+        }
+        <div id="stripe-plan-payment-element" class="stripe-element-box"></div>
+
+        @if (stripeError()) {
+          <div class="alert alert--error">{{ stripeError() }}</div>
+        }
+
+        <div class="stripe-modal-actions">
+          <button type="button" class="btn-secundario" (click)="cancelarPagoStripe()" [disabled]="pagandoStripe()">
+            Cancelar
+          </button>
+          <button type="button" class="btn-pagar" (click)="confirmarPagoStripe()" [disabled]="pagandoStripe() || cargandoStripe()">
+            @if (pagandoStripe()) { Procesando pago... } @else { Pagar y activar plan }
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (cargando()) {
+    <p class="loading-text">Cargando planes disponibles...</p>
+  } @else {
+    @if (datos(); as info) {
+      @if (info.suscripcion_actual; as actual) {
+        <div class="card estado-actual">
+          <div>
+            <span class="tag-vigente">Plan actual: {{ actual.estado | uppercase }}</span>
+            <h2>{{ actual.plan_nombre }}</h2>
+            <p>Vigente del {{ actual.fecha_inicio }} al {{ actual.fecha_fin }} · Comisión por venta: {{ actual.comision_porcentaje }}%</p>
+          </div>
+          <div class="precio-actual">
+            <span>{{ precioFormateado(actual.precio_mensual) }}</span>
+            <small>/ mes</small>
+          </div>
+        </div>
+      } @else {
+        <div class="card estado-sin-plan">
+          <h2>Aún no tienes un plan activo</h2>
+          <p>Elige entre <strong>Plan Estándar (hasta 3 tiendas)</strong> o <strong>Plan Premium (hasta 10 tiendas)</strong> para comenzar.</p>
+        </div>
+      }
+
+      <div class="planes-grid">
+        @for (plan of info.planes; track plan.id) {
+          <article class="plan-card" [class.plan-card--activo]="esPlanActual(plan)" [class.plan-card--premium]="plan.codigo === 'premium'">
+            <div class="plan-top">
+              <span class="plan-codigo">{{ plan.codigo }}</span>
+              @if (esPlanActual(plan)) {
+                <span class="badge-actual">Actual</span>
+              }
+            </div>
+            <h3>{{ plan.nombre }}</h3>
+            <p class="plan-desc">{{ plan.descripcion || 'Plan de suscripción para administración de tiendas.' }}</p>
+
+            <div class="plan-precio">
+              <strong>{{ precioFormateado(plan.precio_mensual) }}</strong>
+              <span>/ mes</span>
+            </div>
+
+            <ul class="plan-beneficios">
+              <li>Hasta <strong>{{ plan.max_tiendas }} tiendas</strong></li>
+              <li>Comisión de plataforma: <strong>{{ plan.comision_porcentaje }}%</strong></li>
+              <li>Productos por tienda: <strong>{{ plan.max_productos ?? 'Ilimitados' }}</strong></li>
+              <li>Usuarios autorizados: <strong>{{ plan.max_usuarios ?? 'Ilimitados' }}</strong></li>
+            </ul>
+
+            <button
+              type="button"
+              class="btn-elegir"
+              [disabled]="esPlanActual(plan) || guardandoPlanId() === plan.id"
+              (click)="elegirPlan(plan)"
+            >
+              @if (guardandoPlanId() === plan.id) {
+                Iniciando pago...
+              } @else if (esPlanActual(plan)) {
+                Plan activo
+              } @else {
+                Elegir {{ plan.nombre }}
+              }
+            </button>
+          </article>
+        }
+      </div>
+    }
+  }
+</section>

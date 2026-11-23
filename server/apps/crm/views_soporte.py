@@ -3,7 +3,6 @@ Controladores REST API para CU-26: Registrar consulta / reclamo (Atención al cl
 """
 
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -16,7 +15,6 @@ from apps.crm.serializers import (
     MensajeTicketSerializer,
 )
 from apps.tiendas.models import Tienda
-from apps.pedidos.models import Pedido
 from apps.usuarios.audit import ACCION_CREAR, ACCION_ACTUALIZAR, registrar_auditoria
 
 

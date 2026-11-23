@@ -6,11 +6,10 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.http import urlsafe_base64_decode
 from rest_framework import serializers
 
-from .models import BitacoraAcceso, LogAuditoria, Permiso, Rol, RolPermiso
+from .models import BitacoraAcceso, LogAuditoria, Permiso, Rol
 
 Usuario = get_user_model()
 

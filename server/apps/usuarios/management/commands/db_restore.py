@@ -4,10 +4,8 @@ Restaura un respaldo de base de datos (.sql.gz o .sql) con salvaguardas de segur
 desactivación temporal de triggers de negocio y resincronización de secuencias.
 """
 
-import sys
 from pathlib import Path
 from django.core.management.base import BaseCommand, CommandError
-from django.conf import settings
 from apps.usuarios.services.backup_service import BackupService, BinaryDetector, DatabaseCredentials
 
 

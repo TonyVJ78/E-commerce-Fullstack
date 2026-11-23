@@ -29,12 +29,11 @@ export class NavbarComponent implements OnInit, OnDestroy {
   readonly cartData = toSignal(this.carritoService.cartData$, { initialValue: null });
   readonly cartCount = toSignal(this.carritoService.cartCount$, { initialValue: 0 });
 
-  // El carrito está abierto a todo usuario autenticado (decisión del equipo: las cuentas
-  // empresa también compran para probar el flujo).
-  readonly puedeComprar = computed(() => !!this.currentUser());
+  readonly puedeComprar = computed(() => this.userRole() === 'cliente');
   readonly userRole = computed(() => this.currentUser()?.rol?.toLowerCase() ?? '');
 
   menuOpen = false;
+  openDropdown: 'tiendas' | 'ventas' | 'finanzas' | null = null;
   cartOpen = false;
   checkoutSuccess = false;
   /** CU-33: correo al que se envió la factura de la última compra (null si no salió). */
@@ -60,9 +59,9 @@ export class NavbarComponent implements OnInit, OnDestroy {
   private readonly subs = new Subscription();
 
   ngOnInit(): void {
-    // Cargar carrito inicial para cualquier usuario autenticado
+    // Cargar carrito inicial solo para cuentas cliente
     this.subs.add(this.authService.currentUser$.subscribe((user) => {
-      if (user) {
+      if (user && user.rol?.toLowerCase() === 'cliente') {
         this.carritoService.cargarCarritoSilencioso();
       }
     }));
@@ -87,9 +86,27 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
   @HostListener('document:keydown.escape')
   cerrarMenuConEscape(): void {
+    this.openDropdown = null;
     if (!this.menuOpen) return;
     this.menuOpen = false;
     document.querySelector<HTMLButtonElement>('.menu-toggle')?.focus();
+  }
+
+  @HostListener('document:click', ['$event'])
+  cerrarDropdownAlHacerClickFuera(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (!target?.closest('.nav-dropdown')) {
+      this.openDropdown = null;
+    }
+  }
+
+  toggleDropdown(grupo: 'tiendas' | 'ventas' | 'finanzas'): void {
+    this.openDropdown = this.openDropdown === grupo ? null : grupo;
+  }
+
+  cerrarMenus(): void {
+    this.openDropdown = null;
+    this.menuOpen = false;
   }
 
   toggleMenu(): void {

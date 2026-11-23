@@ -9,7 +9,7 @@ from apps.pedidos.models import Pedido
 from apps.tiendas.models import Tienda
 from apps.usuarios.models import Usuario
 from apps.usuarios.permissions import IsEmpresaUser
-from .models import FichaCliente, InteraccionCliente, Segmento
+from .models import FichaCliente, InteraccionCliente
 
 
 class CrmClientesListView(APIView):

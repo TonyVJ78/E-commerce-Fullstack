@@ -232,12 +232,9 @@ class PasswordResetRequestView(APIView):
                     fail_silently=False,
                 )
             except Exception as e:
-                logger.error(f"Error al enviar correo de recuperación a {email}: {e}")
-                # En desarrollo o si falla el backend de email, se imprime en consola para facilitar pruebas
-                print(f"\n=======================================================")
-                print(f"🔑 [RECUPERAR CONTRASEÑA] Enlace generado para {email}:")
-                print(f"🔗 {reset_url}")
-                print(f"=======================================================\n")
+                logger.error("Error al enviar correo de recuperación a %s: %s", email, e)
+                if settings.DEBUG:
+                    logger.debug("[RECUPERAR CONTRASEÑA] Enlace para %s: %s", email, reset_url)
         except Usuario.DoesNotExist:
             pass  # No revelar que el email no existe
 

@@ -9,7 +9,6 @@ from apps.tiendas.models import Tienda
 from apps.usuarios.models import Rol, Usuario
 
 from .models import (
-    Carrito,
     HistorialEstadoPedido,
     ItemCarrito,
     ItemPedido,

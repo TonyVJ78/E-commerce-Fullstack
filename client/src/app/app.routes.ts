@@ -90,6 +90,12 @@ export const routes: Routes = [
       import('./features/admin/backups-admin/backups-admin.component').then(m => m.BackupsAdminComponent)
   },
   {
+    path: 'admin/suscripciones',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/admin/suscripciones-admin/suscripciones-admin.component').then(m => m.SuscripcionesAdminComponent)
+  },
+  {
     path: 'backups',
     redirectTo: 'admin/backups',
     pathMatch: 'full'
@@ -154,6 +160,12 @@ export const routes: Routes = [
     canActivate: [empresaGuard],
     loadComponent: () =>
       import('./features/tienda/identidad-marca/identidad-marca.component').then(m => m.IdentidadMarcaComponent)
+  },
+  {
+    path: 'tiendas/suscripcion',
+    canActivate: [empresaGuard],
+    loadComponent: () =>
+      import('./features/tienda/mi-suscripcion/mi-suscripcion.component').then(m => m.MiSuscripcionComponent)
   },
   {
     path: 'tiendas/tickets',

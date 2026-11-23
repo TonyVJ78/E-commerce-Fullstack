@@ -45,7 +45,7 @@ if os.path.isfile(env_file):
 
 
 SECRET_KEY = env('SECRET_KEY', default='kantu-market-django-prod-secret-key-2026-secure')
-DEBUG = env.bool('DEBUG', default=True)
+DEBUG = env.bool('DEBUG', default=not bool(os.environ.get('VERCEL')))
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['*'])
 
 # =============================================================================
