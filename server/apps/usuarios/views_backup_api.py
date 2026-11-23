@@ -482,14 +482,17 @@ class BackupAutomatizacionApiView(APIView):
                 'retencion_dias': retencion,
             })
 
-            LogAuditoria.objects.create(
-                usuario=request.user,
-                tabla_afectada='backup_automatizacion',
-                registro_id=0,
-                accion='CONFIG_AUTOMATIZACION',
-                datos_anteriores=None,
-                datos_nuevos=config_actualizada,
-            )
+            try:
+                LogAuditoria.objects.create(
+                    usuario=request.user,
+                    tabla_afectada='backup_automatizacion',
+                    registro_id=0,
+                    accion='CONFIG_AUTOMATIZACION',
+                    datos_anteriores=None,
+                    datos_nuevos=config_actualizada,
+                )
+            except Exception as audit_err:
+                logger.warning("No se pudo auditar configuracion de backups: %s", audit_err)
 
             return Response({
                 "success": True,
