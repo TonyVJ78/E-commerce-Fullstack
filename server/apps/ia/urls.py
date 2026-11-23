@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from . import views, views_chatbot, views_informes
+from . import views, views_chatbot, views_informes, views_ml, views_panel
 
 
 urlpatterns = [
@@ -13,8 +13,14 @@ urlpatterns = [
     path('informes/', views_informes.InformeListView.as_view(), name='ia_informes'),
     path('informes/contexto/', views_informes.ContextoInformesView.as_view(), name='ia_informes_contexto'),
     path('informes/generar/', views_informes.GenerarInformeView.as_view(), name='ia_informes_generar'),
+    path('informes/panel/', views_panel.PanelView.as_view(), name='ia_informes_panel'),
+    path('informes/panel/interpretar/', views_panel.InterpretarPanelView.as_view(), name='ia_informes_panel_interpretar'),
     path('informes/<int:pk>/', views_informes.InformeDetailView.as_view(), name='ia_informe_detalle'),
     path('informes/<int:pk>/exportar/', views_informes.ExportarInformeView.as_view(), name='ia_informe_exportar'),
+
+    # Machine Learning sobre los datos de la tienda
+    path('ml/tiendas/<int:tienda_id>/', views_ml.ModelosMlView.as_view(), name='ia_ml_tienda'),
+    path('ml/tiendas/<int:tienda_id>/entrenar/', views_ml.EntrenarMlView.as_view(), name='ia_ml_entrenar'),
 
     # Telemetría de interacción (acepta tanto 'eventos' como 'interacciones')
 

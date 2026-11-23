@@ -1,0 +1,100 @@
+# 🛠️ HERRAMIENTAS.md — Kantu Market
+
+Registro de todas las herramientas, lenguajes, frameworks, librerías y servicios utilizados en el proyecto.
+
+> **Última actualización**: Sprint 0
+
+---
+
+## Backend
+
+| Herramienta | Versión | Descripción |
+|-------------|---------|-------------|
+| Python | 3.12 | Lenguaje de programación del backend |
+| Django | 5.1.9 | Framework web principal |
+| Django REST Framework | 3.16.0 | Toolkit para construir APIs REST |
+| djangorestframework-simplejwt | 5.5.0 | Autenticación JWT (access + refresh tokens, blacklist) |
+| django-cors-headers | 4.7.0 | Manejo de CORS para permitir peticiones del frontend |
+| django-environ | 0.12.0 | Lectura de variables de entorno desde `.env` |
+| django-filter | 24.3 | Filtros declarativos por querystring para los endpoints de bitácora/auditoría (CU07) |
+| psycopg[binary] | 3.3.5 | Driver de PostgreSQL para Python (reemplaza a psycopg2-binary; wheels para Python 3.12-3.14) |
+| Gunicorn | 23.0.0 | Servidor WSGI para producción (no usado en dev, incluido para futura referencia) |
+| stripe | 15.6.0 | SDK de Stripe para crear y confirmar `PaymentIntent` en el checkout con tarjeta (CU-19) |
+| anthropic | 1.11.0 | SDK oficial de la API de Claude; el chatbot de recomendaciones usa Claude Haiku 4.5 (`claude-haiku-4-5`) con tool use sobre el catálogo |
+| fpdf2 | 2.8.7 | Generación en Python puro del PDF de la factura/recibo de compra que se envía por correo al cliente (CU-33) y del PDF de los informes con IA (CU-34) |
+| openpyxl | 3.1.5 | Exportación a Excel (.xlsx) de los informes de tienda generados con IA, con formato numérico, filtros y gráfico nativo (CU-34) |
+| numpy | 2.5.5 | Álgebra lineal para los modelos de Machine Learning de los informes (pronóstico de ventas con regresión ridge, riesgo de abandono con regresión logística, reglas de asociación); es la única librería de ML porque Vercel limita el tamaño de la función, por eso no se usa scikit-learn |
+| firebase-admin | 7.7.0 | SDK de Firebase para enviar notificaciones push por FCM a la app móvil (recordatorios de recompra y avisos de carrito, CU-26/CU-28); opcional, se activa con `FCM_ENABLED` |
+| Gmail SMTP | — | Servidor de salida (`smtp.gmail.com:587`, TLS, contraseña de aplicación) para el correo con la factura PDF (CU-33) y la recuperación de contraseña |
+
+## Frontend
+
+| Herramienta | Versión | Descripción |
+|-------------|---------|-------------|
+| Node.js | 20 (Docker) / 24 (host) | Runtime de JavaScript |
+| npm | 11.x | Gestor de paquetes de Node.js |
+| Angular CLI | 19.2.x | CLI de Angular para scaffolding y compilación |
+| Angular | 19.2.x | Framework frontend (standalone components) |
+| TypeScript | 5.6.x | Lenguaje tipado que compila a JavaScript |
+| RxJS | 7.x | Programación reactiva para HTTP y estados |
+| Inter (Google Fonts) | — | Tipografía principal de la interfaz |
+| @stripe/stripe-js | 9.16.0 | Stripe.js: monta el Payment Element embebido en el carrito y confirma el pago (CU-19) |
+| marked | 18.0.14 | Convierte a HTML el Markdown de las respuestas del chatbot de recomendaciones |
+| DOMPurify | 3.4.16 | Sanitiza el HTML generado desde Markdown antes de insertarlo en el DOM (evita XSS) |
+| Chart.js | 4.5.1 | Gráficos del panel del vendedor (CU-10) y de los informes con IA (barras o líneas según el informe, CU-34) |
+| Web Speech API (navegador) | — | Dictado por voz del pedido de informe (CU-34) y de los mensajes al chatbot en Chrome/Edge (`SpeechRecognition`, es-BO), y lectura en voz alta de las respuestas del chatbot (`speechSynthesis`); sin dependencia ni costo |
+
+## App móvil
+
+| Herramienta | Versión | Descripción |
+|-------------|---------|-------------|
+| Flutter | 3.47.2 | SDK de la app móvil multiplataforma |
+| Dart | 3.13.2 | Lenguaje de la app móvil |
+| provider | 6.1.2 | Gestión de estado (ChangeNotifier) de los servicios de la app |
+| sqflite | 2.4.1 | Base de datos SQLite local para el modo autónomo offline |
+| shared_preferences | 2.3.5 | Persistencia de sesión y configuración del backend (claves `km_*`) |
+| http | 1.3.0 | Cliente HTTP contra la API REST de Django |
+| image_picker | 1.1.2 | Selección de la imagen del producto desde galería o cámara (CU-08) |
+| flutter_stripe | 11.5.0 | SDK de Stripe para Flutter: `CardField` embebido y confirmación del pago con tarjeta (CU-19) |
+| intl | 0.20.2 | Formato de fechas y números en es-BO |
+| flutter_markdown_plus | 1.0.12 | Renderiza el Markdown de las respuestas del chatbot (continuación mantenida de `flutter_markdown`, descontinuado) |
+| speech_to_text | 7.5.0 | Dictado por voz del pedido de informe (CU-34) y de los mensajes al chatbot con el reconocedor del teléfono (permiso `RECORD_AUDIO`) |
+| flutter_tts | 4.2.5 | Lectura en voz alta de las respuestas del chatbot cuando el cliente le habla (motor TTS del teléfono) |
+| path_provider | 2.1.6 | Carpeta temporal donde se guarda el PDF/Excel exportado antes de abrirlo o compartirlo (CU-34) |
+| open_filex | 4.7.0 | Abre el PDF/Excel exportado con la app instalada en el teléfono (CU-34) |
+| share_plus | 13.3.1 | Hoja de compartir del sistema para enviar o guardar el informe exportado (WhatsApp, correo, Drive, CU-34) |
+| Inter (fuente empaquetada) | — | Tipografía principal, incluida como asset local |
+
+## Base de datos
+
+| Herramienta | Versión | Descripción |
+|-------------|---------|-------------|
+| PostgreSQL | 16 (Alpine) | Base de datos relacional principal |
+| Neon (PostgreSQL serverless) | — | Base de datos en la nube usada por el entorno desplegado |
+| Triggers PL/pgSQL | — | 6 triggers de negocio: stock, total de pedido, historial de estados, validación de carrito, timestamp de producto y auditoría de tienda |
+
+## Autenticación
+
+| Herramienta | Versión | Descripción |
+|-------------|---------|-------------|
+| JWT (JSON Web Tokens) | — | Estándar de autenticación stateless |
+| Token Blacklist | (simplejwt) | Invalidación de refresh tokens al logout |
+| Django Password Reset Tokens | (nativo) | Tokens para recuperación de contraseña |
+
+## Despliegue / DevOps
+
+| Herramienta | Versión | Descripción |
+|-------------|---------|-------------|
+| Docker | 29.x | Contenedorización de servicios |
+| Docker Compose | 5.x | Orquestación de contenedores para desarrollo local |
+| Vercel | — | Hosting del despliegue (Angular estático + Django serverless) |
+| Vercel Cron | — | Llama cada día (`0 5 * * *`, 05:00 UTC) a `GET /api/finanzas/tipo-cambio/actualizar/` con `Authorization: Bearer <CRON_SECRET>` para refrescar el tipo de cambio oficial |
+
+## Otros
+
+| Herramienta | Versión | Descripción |
+|-------------|---------|-------------|
+| Git | — | Control de versiones |
+| `.env` / `.env.example` | — | Gestión de variables de entorno sensibles |
+| OpenAI Responses API | — | Reordenamiento opcional de candidatos en las recomendaciones personalizadas (CU-14); se llama con `urllib`, sin SDK |
+| API de tipo de cambio de factura.bo | — | `https://api.factura.bo/ExchangeRate/history` (pública, sin clave): cotización oficial del BCB (USD y UFV en Bs) publicada a diario ~04:05 UTC; se consulta con `urllib` y se guarda por fecha en `tipo_cambio` |

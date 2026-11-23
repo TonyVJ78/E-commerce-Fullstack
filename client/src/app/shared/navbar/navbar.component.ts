@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, inject, computed } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
@@ -7,19 +7,23 @@ import { loadStripe, Stripe, StripeElements, StripePaymentElement } from '@strip
 import { AuthService } from '../../core/services/auth.service';
 import { CarritoService, CheckoutResponse } from '../../core/services/carrito.service';
 import { ItemCarritoDetalle } from '../../core/models/carrito.model';
+import { MonedaService } from '../../core/services/moneda.service';
+import { PrecioComponent } from '../precio/precio.component';
+import { TcNotaComponent } from '../precio/tc-nota.component';
 
 export type MetodoPago = 'efectivo' | 'stripe';
 
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterLinkActive],
+  imports: [CommonModule, RouterLink, RouterLinkActive, PrecioComponent, TcNotaComponent],
   templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.css']
 })
 export class NavbarComponent implements OnInit, OnDestroy {
   public readonly authService = inject(AuthService);
   public readonly carritoService = inject(CarritoService);
+  public readonly monedaService = inject(MonedaService);
 
   readonly currentUser = toSignal(this.authService.currentUser$, { initialValue: this.authService.currentUser });
   readonly cartData = toSignal(this.carritoService.cartData$, { initialValue: null });
@@ -43,6 +47,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
   cargandoStripe = false;
   pagandoStripe = false;
   stripeError: string | null = null;
+  importeStripe: { bs: string; usd: string; tasa: string } | null = null;
 
   private stripe: Stripe | null = null;
   private elements: StripeElements | null = null;
@@ -78,6 +83,13 @@ export class NavbarComponent implements OnInit, OnDestroy {
     this.resetPagoStripe();
     this.setCartOpen(false);
     this.subs.unsubscribe();
+  }
+
+  @HostListener('document:keydown.escape')
+  cerrarMenuConEscape(): void {
+    if (!this.menuOpen) return;
+    this.menuOpen = false;
+    document.querySelector<HTMLButtonElement>('.menu-toggle')?.focus();
   }
 
   toggleMenu(): void {
@@ -165,6 +177,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
       if (!stripe) {
         throw new Error('No se pudo inicializar la pasarela de pagos Stripe.');
       }
+      this.importeStripe = { bs: intento.monto_bs, usd: intento.monto_usd, tasa: intento.tipo_cambio_usd };
       return { stripe, clientSecret: intento.client_secret };
     });
 
@@ -214,6 +227,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
    * Evita memory leaks, iframes huérfanos o colisiones al reabrir el drawer.
    */
   private resetPagoStripe(): void {
+    this.importeStripe = null;
     this.metodoPago = 'efectivo';
     if (this.paymentElement) {
       try {

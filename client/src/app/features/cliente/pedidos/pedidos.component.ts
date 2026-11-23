@@ -6,11 +6,13 @@ import {
   PedidoCliente,
   PedidosClienteService,
 } from '../../../core/services/pedidos-cliente.service';
+import { PrecioComponent } from '../../../shared/precio/precio.component';
+import { TcNotaComponent } from '../../../shared/precio/tc-nota.component';
 
 @Component({
   selector: 'app-pedidos-cliente',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule, PrecioComponent, TcNotaComponent],
   templateUrl: './pedidos.component.html',
   styleUrls: ['./pedidos.component.css'],
 })
@@ -139,8 +141,7 @@ export class PedidosClienteComponent implements OnInit {
   }
 
   puedeCalificar(pedido: PedidoCliente): boolean {
-    const estadosPermitidos = ['completado', 'completada', 'entregado', 'finalizado', 'completed'];
-    return estadosPermitidos.includes((pedido.estado || '').trim().toLowerCase());
+    return (pedido.estado || '').trim().toLowerCase() === 'entregado';
   }
 
   setCalificacion(estrellas: number): void {
@@ -178,10 +179,9 @@ export class PedidosClienteComponent implements OnInit {
       .subscribe({
         next: () => {
           this.guardandoResena = false;
-          this.mensaje = '¡Tu calificación fue registrada exitosamente!';
-          this.resenaForm.patchValue({ comentario: '' });
-          // Recargar el detalle del pedido para visualizar la reseña inmediatamente
+          // abrirPedido limpia el mensaje al empezar: el aviso va después de recargar.
           this.abrirPedido(this.seleccionado!.id, false);
+          this.mensaje = '¡Tu calificación fue registrada exitosamente!';
         },
         error: (response) => {
           this.guardandoResena = false;

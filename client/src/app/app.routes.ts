@@ -67,7 +67,7 @@ export const routes: Routes = [
   },
   {
     path: 'dashboard',
-    canActivate: [authGuard],
+    canActivate: [adminGuard],
     loadComponent: () =>
       import('./features/admin/dashboard-admin.component').then(m => m.DashboardAdminComponent)
   },
@@ -100,7 +100,24 @@ export const routes: Routes = [
     path: 'informes',
     canActivate: [authGuard],
     loadComponent: () =>
-      import('./features/informes/informes.component').then(m => m.InformesComponent)
+      import('./features/informes/informes-shell.component').then(m => m.InformesShellComponent),
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./features/informes/panel/panel-kpis.component').then(m => m.PanelKpisComponent)
+      },
+      {
+        path: 'asistente',
+        loadComponent: () =>
+          import('./features/informes/informes.component').then(m => m.InformesComponent)
+      },
+      {
+        path: 'predicciones',
+        loadComponent: () =>
+          import('./features/informes/ml/ml-panel.component').then(m => m.MlPanelComponent)
+      }
+    ]
   },
   {
     path: 'perfil',
@@ -127,6 +144,12 @@ export const routes: Routes = [
       import('./features/tienda/gestion-pedidos/gestion-pedidos.component').then(m => m.GestionPedidosComponent)
   },
   {
+    path: 'tiendas/gastos',
+    canActivate: [empresaGuard],
+    loadComponent: () =>
+      import('./features/tienda/gastos/gastos.component').then(m => m.GastosComponent)
+  },
+  {
     path: 'tiendas/identidad',
     canActivate: [empresaGuard],
     loadComponent: () =>
@@ -137,6 +160,12 @@ export const routes: Routes = [
     canActivate: [empresaGuard],
     loadComponent: () =>
       import('./features/tienda/tickets-soporte/tickets-tienda.component').then(m => m.TicketsTiendaComponent)
+  },
+  {
+    path: 'tiendas/satisfaccion',
+    canActivate: [empresaGuard],
+    loadComponent: () =>
+      import('./features/tienda/satisfaccion-clientes/satisfaccion-clientes.component').then(m => m.SatisfaccionClientesComponent)
   },
   {
     path: 'tiendas/campana-carrito',

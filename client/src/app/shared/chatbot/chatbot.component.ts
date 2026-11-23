@@ -15,6 +15,7 @@ import { Subscription } from 'rxjs';
 import { MensajeChat, ProductoCatalogo } from '../../core/models';
 import { ChatbotService } from '../../core/services/chatbot.service';
 import { MarkdownComponent } from '../markdown/markdown.component';
+import { PrecioComponent } from '../precio/precio.component';
 
 /** API de dictado del navegador (Chrome/Edge la exponen con prefijo `webkit`). */
 type Reconocimiento = {
@@ -46,7 +47,7 @@ const IMAGEN_RESPALDO =
 @Component({
   selector: 'app-chatbot',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, MarkdownComponent],
+  imports: [CommonModule, FormsModule, RouterLink, MarkdownComponent, PrecioComponent],
   templateUrl: './chatbot.component.html',
   styleUrls: ['./chatbot.component.css']
 })
@@ -235,10 +236,7 @@ export class ChatbotComponent implements AfterViewChecked, OnDestroy {
     const sintesis = window.speechSynthesis;
     const frase = new SpeechSynthesisUtterance(texto);
     frase.lang = 'es-BO';
-    // Una voz en español si el sistema tiene; si no, la que el navegador elija para es-BO.
-    const voces = sintesis.getVoices();
-    const voz = voces.find(v => v.lang.replace('_', '-') === 'es-BO')
-      ?? voces.find(v => v.lang.toLowerCase().startsWith('es'));
+    const voz = elegirVozEspanola();
     if (voz) frase.voice = voz;
     frase.onend = frase.onerror = () => this.zona.run(() => (this.hablando = false));
     sintesis.cancel();
@@ -269,6 +267,15 @@ export class ChatbotComponent implements AfterViewChecked, OnDestroy {
     return minimo.toFixed(2);
   }
 
+  /** Dólares de la variante más barata, salvo que lo más barato sea una oferta (fijada en Bs). */
+  precioUsd(producto: ProductoCatalogo): string | null {
+    const variantes = producto.variantes || [];
+    if (!variantes.length) return producto.precio_base_usd ?? null;
+    const masBarata = variantes.reduce((a, b) =>
+      Number(b.precio_oferta ?? b.precio) < Number(a.precio_oferta ?? a.precio) ? b : a);
+    return masBarata.precio_oferta === null ? masBarata.precio_usd : null;
+  }
+
   enOferta(producto: ProductoCatalogo): boolean {
     return (producto.variantes || []).some(v => v.precio_oferta !== null && v.precio_oferta !== undefined);
   }
@@ -278,11 +285,18 @@ export class ChatbotComponent implements AfterViewChecked, OnDestroy {
   }
 }
 
+/** Una voz en español si el sistema tiene; si no, la que el navegador elija para es-BO. */
+export function elegirVozEspanola(): SpeechSynthesisVoice | undefined {
+  const voces = window.speechSynthesis.getVoices();
+  return voces.find(v => v.lang.replace('_', '-') === 'es-BO')
+    ?? voces.find(v => v.lang.toLowerCase().startsWith('es'));
+}
+
 /**
  * Texto plano para leer en voz alta: los enlaces `[Nombre](producto:ID)` se
  * leen solo por su nombre y se quitan las marcas de Markdown y los emojis.
  */
-function textoParaLeer(markdown: string): string {
+export function textoParaLeer(markdown: string): string {
   return markdown
     .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
@@ -290,7 +304,8 @@ function textoParaLeer(markdown: string): string {
     .replace(/[*_`~#>|]/g, '')
     .replace(/^\s*[-+]\s+/gm, '')
     .replace(/\p{Extended_Pictographic}/gu, '')
-    .replace(/\bBs\.?\s*(\d+(?:[.,]\d+)?)/g, '$1 bolivianos')
+    .replace(/(^|\s)-(?=\d)/g, '$1menos ')
+    .replace(/\bBs\.?\s*(\d+(?:[.,]\d{3})*(?:[.,]\d+)?)/g, '$1 bolivianos')
     // Cada línea (ítem de lista, título) termina en pausa al leerse.
     .replace(/([^.!?:;,\s])[ \t]*\n+/g, '$1. ')
     .replace(/\s+/g, ' ')
