@@ -1,214 +1,265 @@
-<div class="layout admin-dashboard-page">
-  <!-- Cabecera Ejecutiva con Estado en Vivo -->
+<div class="layout dashboard-page">
+  <!-- Cabecera Ejecutiva (Estándar Visual de Empresas) -->
   <header class="page-head">
     <div>
-      <h1>Panel de Control de Administracion</h1>
-      <p>Supervision de plataforma multitenant, infraestructura, auditoria y gobernanza de seguridad.</p>
+      <h1>Panel de Control de Administración</h1>
+      <p>Supervisión global de la plataforma, suscripciones, auditoría, seguridad y respaldos.</p>
     </div>
     <div class="head-status-group">
+      <span class="status">Plataforma operativa</span>
       <span class="badge badge--admin">Administrador</span>
     </div>
   </header>
 
-  <section class="executive-summary card" aria-labelledby="resumen-ejecutivo">
-    <div class="card__header">
-      <div>
-        <p class="eyebrow">CU31 · Vista general</p>
-        <h2 id="resumen-ejecutivo" class="card__title">Resumen ejecutivo de la plataforma</h2>
-      </div>
-      <a routerLink="/informes" class="btn btn--ghost">Ver análisis completo</a>
+  @if (cargandoResumen()) {
+    <div class="bento">
+      @for (n of [1, 2, 3, 4]; track n) {
+        <div class="col-3 skeleton" style="height: 120px;"></div>
+      }
+      <div class="col-8 skeleton" style="height: 380px;"></div>
+      <div class="col-4 skeleton" style="height: 380px;"></div>
     </div>
-    <p class="card-desc">Indicadores consolidados de los últimos 30 días, comparados con el periodo anterior.</p>
-
-    @if (cargandoResumen()) {
-      <div class="summary-loading" aria-live="polite">Cargando indicadores…</div>
-    } @else if (errorResumen()) {
-      <div class="summary-error" role="status">{{ errorResumen() }}</div>
-      <button type="button" class="btn btn--ghost" (click)="cargarResumen()">Reintentar</button>
-    } @else if (!gruposResumen().length) {
-      <p role="status">No hay indicadores disponibles para este periodo.</p>
-    } @else {
-      <div class="summary-grid">
-        @for (grupo of gruposResumen(); track grupo.clave) {
-          @for (clave of (grupo.clave === 'ventas' ? ['ingresos', 'pedidos', 'ticket_promedio'] : ['ganancia_bruta', 'utilidad_neta', 'margen_bruto_pct']); track clave) {
-            @if (kpi(grupo, clave); as indicador) {
-              <article class="summary-kpi">
-                <span>{{ indicador.titulo }}</span>
-                <strong>{{ formatoValor(indicador.valor, indicador.tipo) }}</strong>
-                @if (indicador.variacion !== null) {
-                  <small [class.positive]="indicador.mejor_si === 'sube' ? indicador.variacion > 0 : indicador.variacion < 0"
-                         [class.negative]="indicador.mejor_si === 'sube' ? indicador.variacion < 0 : indicador.variacion > 0">
-                    {{ formatoVariacion(indicador.variacion, indicador.tipo) }} vs. periodo anterior
-                  </small>
-                }
-              </article>
-            }
-          }
+  } @else if (errorResumen()) {
+    <div class="alert alert--danger" role="alert" style="margin-bottom: var(--sp-5);">
+      <div>
+        <strong>Error de carga:</strong> {{ errorResumen() }}
+      </div>
+      <button type="button" class="btn btn--outline" (click)="cargarResumen()">
+        Reintentar
+      </button>
+    </div>
+  } @else {
+    <div class="bento">
+      <!-- KPI 1: Ingresos Totales 30d -->
+      <div class="col-3">
+        @if (kpiGlobal('ventas', 'ingresos'); as kIngresos) {
+          <a routerLink="/informes" class="kpi kpi--money kpi-link" title="Ver análisis completo">
+            <div class="kpi__top">
+              <div>
+                <div class="kpi__label">{{ kIngresos.titulo }} (30d)</div>
+                <div class="kpi__value">{{ formatoValor(kIngresos.valor, kIngresos.tipo) }}</div>
+              </div>
+              <div class="kpi__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+              </div>
+            </div>
+            <div class="kpi__foot">
+              @if (kIngresos.variacion !== null) {
+                <span class="badge" [class.badge--success]="esVariacionPositiva(kIngresos)" [class.badge--danger]="!esVariacionPositiva(kIngresos)">
+                  <span class="badge__dot"></span>{{ formatoVariacion(kIngresos.variacion, kIngresos.tipo) }}
+                </span>
+              }
+              <span class="kpi__sub">vs. periodo anterior</span>
+            </div>
+          </a>
         }
       </div>
-    }
-  </section>
 
-  <!-- Cuadricula Simetrica Bento Grid -->
-  <div class="bento">
-    <!-- Modulo 1: Copias de Seguridad (col-6) -->
-    <div class="col-6">
-      <section class="card admin-card">
-        <div class="card__header">
-          <div class="card-icon-title">
-            <div class="admin-icon-box icon-danger" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
-                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
-              </svg>
+      <!-- KPI 2: Pedidos 30d -->
+      <div class="col-3">
+        @if (kpiGlobal('ventas', 'pedidos'); as kPedidos) {
+          <a routerLink="/informes" class="kpi kpi--brand kpi-link" title="Ver pedidos e informes">
+            <div class="kpi__top">
+              <div>
+                <div class="kpi__label">{{ kPedidos.titulo }} (30d)</div>
+                <div class="kpi__value">{{ formatoValor(kPedidos.valor, kPedidos.tipo) }}</div>
+              </div>
+              <div class="kpi__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                  <line x1="3" y1="6" x2="21" y2="6"></line>
+                  <path d="M16 10a4 4 0 0 1-8 0"></path>
+                </svg>
+              </div>
             </div>
-            <h2 class="card__title">Copias de Seguridad</h2>
-          </div>
-          <span class="badge badge--success">Disaster Recovery</span>
-        </div>
-        <div class="card__body">
-          <p class="card-desc">
-            Gestion y descarga de respaldos de base de datos del sistema. Generacion bajo demanda, verificacion de integridad sha256 y rotacion autonoma.
-          </p>
-          <div class="card-actions">
-            <a
-              routerLink="/admin/backups"
-              class="btn btn--primary"
-            >
-              <span>Gestionar Copias</span>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
-            </a>
-          </div>
-        </div>
-      </section>
-    </div>
+            <div class="kpi__foot">
+              @if (kPedidos.variacion !== null) {
+                <span class="badge" [class.badge--success]="esVariacionPositiva(kPedidos)" [class.badge--warning]="!esVariacionPositiva(kPedidos)">
+                  <span class="badge__dot"></span>{{ formatoVariacion(kPedidos.variacion, kPedidos.tipo) }}
+                </span>
+              }
+              <span class="kpi__sub">Global multitenant</span>
+            </div>
+          </a>
+        }
+      </div>
 
-    <!-- Modulo 2: Sitio Administrativo Django (col-6) -->
-    <div class="col-6">
-      <section class="card admin-card">
-        <div class="card__header">
-          <div class="card-icon-title">
-            <div class="admin-icon-box" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                <line x1="8" y1="21" x2="16" y2="21"></line>
-                <line x1="12" y1="17" x2="12" y2="21"></line>
-              </svg>
+      <!-- KPI 3: Ticket Promedio -->
+      <div class="col-3">
+        @if (kpiGlobal('ventas', 'ticket_promedio'); as kTicket) {
+          <div class="kpi kpi--pending">
+            <div class="kpi__top">
+              <div>
+                <div class="kpi__label">{{ kTicket.titulo }}</div>
+                <div class="kpi__value">{{ formatoValor(kTicket.valor, kTicket.tipo) }}</div>
+              </div>
+              <div class="kpi__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
             </div>
-            <h2 class="card__title">Sitio Administrativo Django</h2>
+            <div class="kpi__foot">
+              @if (kTicket.variacion !== null) {
+                <span class="badge badge--neutral">{{ formatoVariacion(kTicket.variacion, kTicket.tipo) }}</span>
+              }
+              <span class="kpi__sub">Promedio por orden</span>
+            </div>
           </div>
-          <span class="badge badge--neutral">Core ORM</span>
-        </div>
-        <div class="card__body">
-          <p class="card-desc">
-            Acceso administrativo directo al panel Django Admin para gestion de tablas, esquemas, sesiones de autenticacion y control integral de base de datos.
-          </p>
-          <div class="card-actions">
-            <button
-              type="button"
-              class="btn btn--ghost btn-external"
-              (click)="abrirEnlaceExterno('http://127.0.0.1:8000/admin/')"
-            >
-              <span>Abrir Django Admin</span>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                <polyline points="15 3 21 3 21 9"></polyline>
-                <line x1="10" y1="14" x2="21" y2="3"></line>
-              </svg>
-            </button>
-          </div>
-        </div>
-      </section>
-    </div>
+        }
+      </div>
 
-    <!-- Modulo 3: Bitacora Forense de Auditoria (col-6) -->
-    <div class="col-6">
-      <section class="card admin-card">
-        <div class="card__header">
-          <div class="card-icon-title">
-            <div class="admin-icon-box icon-emerald" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
-              </svg>
+      <!-- KPI 4: Utilidad Neta -->
+      <div class="col-3">
+        @if (kpiGlobal('ganancia', 'utilidad_neta'); as kUtilidad) {
+          <a routerLink="/admin/suscripciones" class="kpi kpi-link" title="Ir a suscripciones y liquidaciones">
+            <div class="kpi__top">
+              <div>
+                <div class="kpi__label">{{ kUtilidad.titulo }}</div>
+                <div class="kpi__value">{{ formatoValor(kUtilidad.valor, kUtilidad.tipo) }}</div>
+              </div>
+              <div class="kpi__icon" aria-hidden="true" style="background: var(--surface-2); color: var(--ink);">
+                <svg viewBox="0 0 24 24">
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                  <polyline points="17 6 23 6 23 12"></polyline>
+                </svg>
+              </div>
             </div>
-            <h2 class="card__title">Bitacora de Auditoria</h2>
-          </div>
-          <span class="badge badge--neutral">Trazabilidad</span>
-        </div>
-        <div class="card__body">
-          <p class="card-desc">
-            Registro forense de eventos del sistema, trazabilidad de inicios de sesion, creacion de tiendas y modificaciones de registros con sello de tiempo.
-          </p>
-          <div class="card-actions">
-            <a routerLink="/auditoria" class="btn btn--ghost">
-              <span>Consultar Bitacora</span>
-            </a>
-          </div>
-        </div>
-      </section>
-    </div>
+            <div class="kpi__foot">
+              @if (kpiGlobal('ganancia', 'margen_bruto_pct'); as kMargen) {
+                <span class="badge badge--success">
+                  <span class="badge__dot"></span>Margen {{ formatoValor(kMargen.valor, kMargen.tipo) }}
+                </span>
+              }
+            </div>
+          </a>
+        }
+      </div>
 
-    <!-- Modulo 4: Control de Acceso y Roles RBAC (col-6) -->
-    <div class="col-6">
-      <section class="card admin-card">
-        <div class="card__header">
-          <div class="card-icon-title">
-            <div class="admin-icon-box icon-amber" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-              </svg>
+      <!-- Columna Izquierda (col-8): Resumen Ejecutivo de la Plataforma -->
+      <div class="col-8">
+        <section class="card chart-card" aria-labelledby="resumen-ejecutivo">
+          <div class="card__header">
+            <div>
+              <p class="eyebrow">CU31 · Consolidado Últimos 30 Días</p>
+              <h2 id="resumen-ejecutivo" class="card__title">Resumen Ejecutivo de la Plataforma</h2>
             </div>
-            <h2 class="card__title">Control de Acceso y Roles</h2>
+            <a routerLink="/informes" class="btn btn--ghost">Ver análisis completo</a>
           </div>
-          <span class="badge badge--warning">Seguridad RBAC</span>
-        </div>
-        <div class="card__body">
-          <p class="card-desc">
-            Administracion de roles del sistema, asignacion de permisos granulares por perfil y control de acceso basado en roles para vendedores y usuarios.
-          </p>
-          <div class="card-actions">
-            <a routerLink="/accesos" class="btn btn--ghost">
-              <span>Configurar Roles y Permisos</span>
-            </a>
+          <div class="card__body">
+            @if (!gruposResumen().length) {
+              <p role="status" class="card-desc">No hay indicadores disponibles para este periodo.</p>
+            } @else {
+              <div class="summary-grid">
+                @for (grupo of gruposResumen(); track grupo.clave) {
+                  @for (clave of (grupo.clave === 'ventas' ? ['ingresos', 'pedidos', 'ticket_promedio'] : ['ganancia_bruta', 'utilidad_neta', 'margen_bruto_pct']); track clave) {
+                    @if (kpi(grupo, clave); as indicador) {
+                      <article class="summary-kpi">
+                        <span>{{ indicador.titulo }}</span>
+                        <strong>{{ formatoValor(indicador.valor, indicador.tipo) }}</strong>
+                        @if (indicador.variacion !== null) {
+                          <small [class.positive]="esVariacionPositiva(indicador)"
+                                 [class.negative]="!esVariacionPositiva(indicador)">
+                            {{ formatoVariacion(indicador.variacion, indicador.tipo) }} vs. periodo anterior
+                          </small>
+                        }
+                      </article>
+                    }
+                  }
+                }
+              </div>
+            }
           </div>
-        </div>
-      </section>
-    </div>
+        </section>
+      </div>
 
-    <!-- Modulo 5: Planes de Suscripcion y Liquidacion de Tiendas (CU-37) -->
-    <div class="col-6">
-      <section class="card admin-card">
-        <div class="card__header">
-          <div class="card-icon-title">
-            <div class="admin-icon-box icon-emerald" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="1" x2="12" y2="23"></line>
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-              </svg>
+      <!-- Columna Derecha (col-4): Operaciones Rápidas (Estándar Empresas) -->
+      <div class="col-4">
+        <section class="card">
+          <div class="card__header">
+            <h2 class="card__title">Operaciones Rápidas</h2>
+            <span class="badge badge--admin">Administración</span>
+          </div>
+          <div class="card__body">
+            <div class="quick-ops-list">
+              <a routerLink="/admin/suscripciones" class="quick-op-item">
+                <div class="quick-op-icon icon-emerald" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                    <line x1="2" y1="10" x2="22" y2="10"></line>
+                  </svg>
+                </div>
+                <div class="quick-op-content">
+                  <div class="quick-op-title">Suscripciones y Liquidaciones</div>
+                  <div class="quick-op-desc">CU-37: Planes, comisiones y pagos a tiendas</div>
+                </div>
+                <div class="quick-op-arrow" aria-hidden="true">›</div>
+              </a>
+
+              <a routerLink="/admin/backups" class="quick-op-item">
+                <div class="quick-op-icon icon-rose" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                  </svg>
+                </div>
+                <div class="quick-op-content">
+                  <div class="quick-op-title">Copias de Seguridad (DR)</div>
+                  <div class="quick-op-desc">Respaldos, programación automática y SHA256</div>
+                </div>
+                <div class="quick-op-arrow" aria-hidden="true">›</div>
+              </a>
+
+              <a routerLink="/auditoria" class="quick-op-item">
+                <div class="quick-op-icon icon-amber" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                  </svg>
+                </div>
+                <div class="quick-op-content">
+                  <div class="quick-op-title">Bitácora de Auditoría</div>
+                  <div class="quick-op-desc">Trazabilidad forense de acciones y accesos</div>
+                </div>
+                <div class="quick-op-arrow" aria-hidden="true">›</div>
+              </a>
+
+              <a routerLink="/accesos" class="quick-op-item">
+                <div class="quick-op-icon" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                  </svg>
+                </div>
+                <div class="quick-op-content">
+                  <div class="quick-op-title">Roles y Permisos (RBAC)</div>
+                  <div class="quick-op-desc">Gobernanza de accesos y usuarios</div>
+                </div>
+                <div class="quick-op-arrow" aria-hidden="true">›</div>
+              </a>
+
+              <button type="button" class="quick-op-item quick-op-btn" (click)="abrirDjangoAdmin()">
+                <div class="quick-op-icon" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                    <line x1="8" y1="21" x2="16" y2="21"></line>
+                    <line x1="12" y1="17" x2="12" y2="21"></line>
+                  </svg>
+                </div>
+                <div class="quick-op-content">
+                  <div class="quick-op-title">Sitio Administrativo Django</div>
+                  <div class="quick-op-desc">Acceso directo al Core ORM desplegado</div>
+                </div>
+                <div class="quick-op-arrow" aria-hidden="true">↗</div>
+              </button>
             </div>
-            <h2 class="card__title">Suscripciones y Liquidaciones</h2>
           </div>
-          <span class="badge badge--success">CU-37</span>
-        </div>
-        <div class="card__body">
-          <p class="card-desc">
-            Gestion de planes de suscripcion por tienda, comisiones de plataforma y liquidacion de ventas netas.
-          </p>
-          <div class="card-actions">
-            <a routerLink="/admin/suscripciones" class="btn btn--primary">
-              <span>Gestionar Planes y Liquidar</span>
-            </a>
-          </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
-  </div>
+  }
 </div>

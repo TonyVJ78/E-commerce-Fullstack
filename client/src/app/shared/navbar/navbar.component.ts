@@ -8,6 +8,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { CarritoService, CheckoutResponse } from '../../core/services/carrito.service';
 import { ItemCarritoDetalle } from '../../core/models/carrito.model';
 import { MonedaService } from '../../core/services/moneda.service';
+import { environment } from '../../../environments/environment';
 import { PrecioComponent } from '../precio/precio.component';
 import { TcNotaComponent } from '../precio/tc-nota.component';
 
@@ -33,7 +34,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
   readonly userRole = computed(() => this.currentUser()?.rol?.toLowerCase() ?? '');
 
   menuOpen = false;
-  openDropdown: 'tiendas' | 'ventas' | 'finanzas' | null = null;
+  openDropdown: 'tiendas' | 'ventas' | 'finanzas' | 'seguridad' | 'plataforma' | 'sistema' | null = null;
   cartOpen = false;
   checkoutSuccess = false;
   /** CU-33: correo al que se envió la factura de la última compra (null si no salió). */
@@ -100,7 +101,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
     }
   }
 
-  toggleDropdown(grupo: 'tiendas' | 'ventas' | 'finanzas'): void {
+  toggleDropdown(grupo: 'tiendas' | 'ventas' | 'finanzas' | 'seguridad' | 'plataforma' | 'sistema'): void {
     this.openDropdown = this.openDropdown === grupo ? null : grupo;
   }
 
@@ -113,8 +114,14 @@ export class NavbarComponent implements OnInit, OnDestroy {
     this.menuOpen = !this.menuOpen;
   }
 
+  abrirDjangoAdmin(): void {
+    this.cerrarMenus();
+    const adminUrl = environment.apiUrl.replace(/\/api\/?$/, '/admin/');
+    window.open(adminUrl, '_blank', 'noopener,noreferrer');
+  }
+
   abrirEnlaceExterno(ruta: string): void {
-    this.menuOpen = false;
+    this.cerrarMenus();
     window.open(ruta, '_blank', 'noopener,noreferrer');
   }
 

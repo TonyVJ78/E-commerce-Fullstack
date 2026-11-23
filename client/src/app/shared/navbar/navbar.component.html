@@ -125,21 +125,49 @@
           </div>
         }
 
-        <!-- Enlaces para Administradores -->
+        <!-- Enlaces para Administradores (agrupados siguiendo el estándar de Empresas) -->
         @if (user.rol === 'administrador') {
-          <a routerLink="/dashboard" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="menuOpen = false">Dashboard</a>
-          <a routerLink="/auditoria" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="menuOpen = false">Auditoria</a>
-          <a routerLink="/accesos" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="menuOpen = false">Roles y Permisos</a>
-          <a routerLink="/admin/backups" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="menuOpen = false">Backups</a>
-          <a routerLink="/informes" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="menuOpen = false">Informes IA</a>
-          <a (click)="abrirEnlaceExterno('http://127.0.0.1:8000/admin/')" class="nav-external-link" style="cursor: pointer;">
-            <span>Django Admin</span>
-            <svg class="external-icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-              <polyline points="15 3 21 3 21 9"></polyline>
-              <line x1="10" y1="14" x2="21" y2="3"></line>
-            </svg>
-          </a>
+          <a routerLink="/dashboard" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="cerrarMenus()">Dashboard</a>
+
+          <div class="nav-dropdown" [class.open]="openDropdown === 'seguridad'">
+            <button type="button" class="nav-dropdown-trigger" (click)="toggleDropdown('seguridad')" [attr.aria-expanded]="openDropdown === 'seguridad'">
+              <span>Seguridad y Accesos</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="nav-dropdown-menu" role="menu">
+              <a routerLink="/auditoria" routerLinkActive="active" (click)="cerrarMenus()">Bitácora de Auditoría</a>
+              <a routerLink="/accesos" routerLinkActive="active" (click)="cerrarMenus()">Roles y Permisos</a>
+            </div>
+          </div>
+
+          <div class="nav-dropdown" [class.open]="openDropdown === 'plataforma'">
+            <button type="button" class="nav-dropdown-trigger" (click)="toggleDropdown('plataforma')" [attr.aria-expanded]="openDropdown === 'plataforma'">
+              <span>Plataforma y Finanzas</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="nav-dropdown-menu" role="menu">
+              <a routerLink="/admin/suscripciones" routerLinkActive="active" (click)="cerrarMenus()">Suscripciones y Liquidaciones</a>
+              <a routerLink="/informes" routerLinkActive="active" (click)="cerrarMenus()">Informes IA</a>
+            </div>
+          </div>
+
+          <div class="nav-dropdown" [class.open]="openDropdown === 'sistema'">
+            <button type="button" class="nav-dropdown-trigger" (click)="toggleDropdown('sistema')" [attr.aria-expanded]="openDropdown === 'sistema'">
+              <span>Sistema</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <div class="nav-dropdown-menu" role="menu">
+              <a routerLink="/admin/backups" routerLinkActive="active" (click)="cerrarMenus()">Copias de Seguridad</a>
+              <a (click)="abrirDjangoAdmin()" class="nav-external-link" style="cursor: pointer;">
+                <span>Django Admin</span>
+                <svg class="external-icon-svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+              </a>
+            </div>
+          </div>
         }
 
         <!-- Boton de Carrito (Desktop - solo clientes) -->

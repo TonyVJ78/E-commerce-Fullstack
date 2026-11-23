@@ -252,3 +252,27 @@ class AdminBackupViewsSecurityTests(TestCase):
         with patch.object(BackupService, 'get_backup_dir', return_value=Path(self.temp_dir)):
             response = self.client.get('/admin/usuarios/respaldobasedatos/')
             self.assertRedirects(response, reverse('admin_backups_dashboard'), fetch_redirect_response=False)
+
+    def test_guardar_configuracion_automatizacion_audita_sin_error_longitud(self):
+        from rest_framework.test import APIClient
+        from apps.usuarios.models import LogAuditoria
+
+        api = APIClient()
+        api.force_authenticate(user=self.superuser)
+        resp = api.post(
+            '/api/admin/backups/automatizacion/',
+            {
+                'activo': True,
+                'frecuencia': 'diaria',
+                'hora_ejecucion': '03:00',
+                'retencion_dias': 30,
+            },
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(
+            LogAuditoria.objects.filter(
+                tabla_afectada='backup_automatizacion',
+                accion='CONFIG_AUTOMATIZACION',
+            ).exists()
+        )

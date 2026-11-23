@@ -28,8 +28,7 @@ export const authGuard: CanActivateFn = () => {
   if (authService.isAuthenticated) {
     return true;
   }
-  router.navigate(['/login']);
-  return false;
+  return router.createUrlTree(['/login']);
 };
 
 /**
@@ -42,8 +41,7 @@ export const guestGuard: CanActivateFn = () => {
   if (!authService.isAuthenticated) {
     return true;
   }
-  router.navigate([getRoleHomePath(authService.currentUser?.rol)]);
-  return false;
+  return router.createUrlTree([getRoleHomePath(authService.currentUser?.rol)]);
 };
 
 /**
@@ -55,8 +53,7 @@ function createRoleGuard(requiredRole: 'cliente' | 'empresa' | 'administrador'):
     const router = inject(Router);
 
     if (!authService.isAuthenticated) {
-      router.navigate(['/login']);
-      return false;
+      return router.createUrlTree(['/login']);
     }
 
     const rol = authService.currentUser?.rol;
@@ -64,8 +61,7 @@ function createRoleGuard(requiredRole: 'cliente' | 'empresa' | 'administrador'):
       return true;
     }
 
-    router.navigate([getRoleHomePath(rol)]);
-    return false;
+    return router.createUrlTree([getRoleHomePath(rol)]);
   };
 }
 

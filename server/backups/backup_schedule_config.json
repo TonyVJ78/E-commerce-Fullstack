@@ -1,0 +1,6 @@
+{
+  "activo": true,
+  "frecuencia": "diaria",
+  "hora_ejecucion": "03:00",
+  "retencion_dias": 30
+}

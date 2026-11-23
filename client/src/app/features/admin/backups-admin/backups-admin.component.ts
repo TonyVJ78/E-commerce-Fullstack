@@ -146,6 +146,21 @@ export class BackupsAdminComponent implements OnInit {
   }
 
   guardarConfiguracion(): void {
+    const cfg = this.configAuto();
+    if (!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(String(cfg.hora_ejecucion || '').trim())) {
+      this.mensajeError.set('Formato de hora inválido. Usa HH:MM (ej. 03:00).');
+      return;
+    }
+    const retencion = Number(cfg.retencion_dias);
+    if (!Number.isInteger(retencion) || retencion < 1 || retencion > 365) {
+      this.mensajeError.set('Los días de retención deben estar entre 1 y 365.');
+      return;
+    }
+    if (!['diaria', 'diario', 'semanal', 'weekly'].includes(String(cfg.frecuencia || '').toLowerCase())) {
+      this.mensajeError.set('La frecuencia debe ser diaria o semanal.');
+      return;
+    }
+
     this.guardandoConfig.set(true);
     this.limpiarMensajes();
 

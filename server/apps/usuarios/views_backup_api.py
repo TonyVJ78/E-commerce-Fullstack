@@ -467,8 +467,20 @@ class BackupAutomatizacionApiView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        activo = data.get('activo', True)
+        if not isinstance(activo, bool):
+            return Response(
+                {"detail": "El campo 'activo' debe ser booleano (true o false)."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         try:
-            config_actualizada = _guardar_config_automatizacion(data)
+            config_actualizada = _guardar_config_automatizacion({
+                'activo': activo,
+                'frecuencia': frecuencia,
+                'hora_ejecucion': hora,
+                'retencion_dias': retencion,
+            })
 
             LogAuditoria.objects.create(
                 usuario=request.user,

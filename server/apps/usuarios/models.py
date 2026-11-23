@@ -175,7 +175,7 @@ class LogAuditoria(models.Model):
     )
     tabla_afectada = models.CharField(max_length=50)
     registro_id = models.IntegerField()
-    accion = models.CharField(max_length=20)
+    accion = models.CharField(max_length=100)
     datos_anteriores = models.JSONField(null=True, blank=True)
     datos_nuevos = models.JSONField(null=True, blank=True)
     fecha = models.DateTimeField(auto_now_add=True)
