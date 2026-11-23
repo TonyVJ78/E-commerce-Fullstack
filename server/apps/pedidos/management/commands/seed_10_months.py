@@ -461,34 +461,34 @@ class Command(BaseCommand):
     def _sembrar_catalogo(self, tiendas: list, usuarios: dict, inicio_10m: datetime) -> list:
         productos_por_tienda = {
             'kantu-alpaca-couture': [
-                ('Abrigos', 'Abrigo Illimani de Alpaca', '390.00', '33.19', '210.00', ['alpaca', 'invierno', 'premium']),
-                ('Abrigos', 'Poncho Ceremonial Andino', '310.00', '26.38', '165.00', ['poncho', 'alpaca', 'artesanal']),
-                ('Chompas', 'Chompa Tejida Nevado', '240.00', '20.43', '125.00', ['chompa', 'lana', 'invierno']),
-                ('Accesorios', 'Chaleco Ejecutivo Altiplano', '220.00', None, '115.00', ['chaleco', 'formal']),
-                ('Accesorios', 'Bufanda Suave Baby Alpaca', '120.00', '10.21', '55.00', ['bufanda', 'regalo']),
+                ('Abrigos', 'Abrigo Illimani de Alpaca', '390.00', '33.19', '210.00', ['alpaca', 'invierno', 'premium'], 'https://images.unsplash.com/photo-1516762689617-e1cffcef479d?auto=format&fit=crop&w=800&q=80'),
+                ('Abrigos', 'Poncho Ceremonial Andino', '310.00', '26.38', '165.00', ['poncho', 'alpaca', 'artesanal'], 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?auto=format&fit=crop&w=800&q=80'),
+                ('Chompas', 'Chompa Tejida Nevado', '240.00', '20.43', '125.00', ['chompa', 'lana', 'invierno'], 'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?auto=format&fit=crop&w=800&q=80'),
+                ('Accesorios', 'Chaleco Ejecutivo Altiplano', '220.00', None, '115.00', ['chaleco', 'formal'], 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=800&q=80'),
+                ('Accesorios', 'Bufanda Suave Baby Alpaca', '120.00', '10.21', '55.00', ['bufanda', 'regalo'], 'https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?auto=format&fit=crop&w=800&q=80'),
             ],
             'andes-urban-wear': [
-                ('Chaquetas', 'Chaqueta Bomber Kantuta', '280.00', '23.83', '150.00', ['urbano', 'chaqueta']),
-                ('Poleras', 'Polera Oversize Sajama', '135.00', None, '68.00', ['algodon', 'urbano']),
-                ('Pantalones', 'Jogger Cargo Uyuni', '195.00', '16.60', '98.00', ['jogger', 'casual']),
-                ('Sudaderas', 'Hoodie Tricolor Edición Limitada', '230.00', None, '120.00', ['hoodie', 'unisex']),
+                ('Chaquetas', 'Chaqueta Bomber Kantuta', '280.00', '23.83', '150.00', ['urbano', 'chaqueta'], 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=800&q=80'),
+                ('Poleras', 'Polera Oversize Sajama', '135.00', None, '68.00', ['algodon', 'urbano'], 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=800&q=80'),
+                ('Pantalones', 'Jogger Cargo Uyuni', '195.00', '16.60', '98.00', ['jogger', 'casual'], 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=800&q=80'),
+                ('Sudaderas', 'Hoodie Tricolor Edición Limitada', '230.00', None, '120.00', ['hoodie', 'unisex'], 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&w=800&q=80'),
             ],
             'titicaca-artesanias': [
-                ('Textiles', 'Manta Aguayo Tradicional', '180.00', '15.32', '90.00', ['aguayo', 'tradicional']),
-                ('Accesorios', 'Mochila Étnica Copacabana', '160.00', None, '82.00', ['mochila', 'viaje']),
-                ('Accesorios', 'Gorro Chullo Artesanal', '75.00', None, '35.00', ['chullo', 'invierno']),
-                ('Textiles', 'Camino de Mesa Telar Real', '145.00', None, '70.00', ['hogar', 'telar']),
+                ('Textiles', 'Manta Aguayo Tradicional', '180.00', '15.32', '90.00', ['aguayo', 'tradicional'], 'https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?auto=format&fit=crop&w=800&q=80'),
+                ('Accesorios', 'Mochila Étnica Copacabana', '160.00', None, '82.00', ['mochila', 'viaje'], 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=800&q=80'),
+                ('Accesorios', 'Gorro Chullo Artesanal', '75.00', None, '35.00', ['chullo', 'invierno'], 'https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9?auto=format&fit=crop&w=800&q=80'),
+                ('Textiles', 'Camino de Mesa Telar Real', '145.00', None, '70.00', ['hogar', 'telar'], 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=800&q=80'),
             ],
             'salar-diseno-hogar': [
-                ('Hogar', 'Manta Nórdica Salar Blanco', '260.00', '22.13', '135.00', ['hogar', 'manta']),
-                ('Hogar', 'Set de Cojines Andinos (x2)', '150.00', None, '75.00', ['cojin', 'decoracion']),
-                ('Hogar', 'Tapiz Geométrico Tiwanaku', '210.00', None, '105.00', ['tapiz', 'arte']),
+                ('Hogar', 'Manta Nórdica Salar Blanco', '260.00', '22.13', '135.00', ['hogar', 'manta'], 'https://images.unsplash.com/photo-1580301762395-21ce84d00bc6?auto=format&fit=crop&w=800&q=80'),
+                ('Hogar', 'Set de Cojines Andinos (x2)', '150.00', None, '75.00', ['cojin', 'decoracion'], 'https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?auto=format&fit=crop&w=800&q=80'),
+                ('Hogar', 'Tapiz Geométrico Tiwanaku', '210.00', None, '105.00', ['tapiz', 'arte'], 'https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?auto=format&fit=crop&w=800&q=80'),
             ],
         }
         variantes_todas = []
         for idx_t, tienda in enumerate(tiendas):
             specs = productos_por_tienda.get(tienda.slug, [])
-            for idx_p, (cat_nombre, prod_nombre, precio, precio_usd, costo, tags) in enumerate(specs, start=1):
+            for idx_p, (cat_nombre, prod_nombre, precio, precio_usd, costo, tags, img_url) in enumerate(specs, start=1):
                 cat, _ = Categoria.objects.get_or_create(tienda=tienda, nombre=cat_nombre)
                 slug = f'{tienda.slug}-prod-{idx_p}'
                 prod, _ = Producto.objects.get_or_create(
@@ -499,7 +499,7 @@ class Command(BaseCommand):
                         'nombre': prod_nombre,
                         'descripcion': f'{prod_nombre} confeccionado con materiales seleccionados de alta durabilidad.',
                         'etiquetas': tags,
-                        'imagenes': [],
+                        'imagenes': [img_url],
                         'activo': True,
                         'creado': inicio_10m + timedelta(days=idx_t * 15 + idx_p * 3),
                         'actualizado': inicio_10m + timedelta(days=idx_t * 15 + idx_p * 3),
